@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Игра ультиматум для группы</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      background: #f4f7fb;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1, h2, h3 { margin: 0 0 12px; }
+    p { line-height: 1.5; }
+    .grid {
+      display: grid;
+      gap: 20px;
+    }
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .card {
+      background: white;
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    input, select, button, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      font-size: 15px;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+    }
+    button {
+      cursor: pointer;
+      border: none;
+      background: #2563eb;
+      color: white;
+      font-weight: 700;
+    }
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    button.success { background: #059669; }
+    button.warn { background: #dc2626; }
+    .row {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      align-items: end;
+    }
+    .pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 13px;
+      margin: 4px 6px 0 0;
+      font-weight: 600;
+    }
+    .student {
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 14px;
+      background: #fafafa;
+    }
+    .stat {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      margin-bottom: 10px;
+    }
+    .big {
+      text-align: center;
+      font-size: 22px;
+      font-weight: 800;
+      padding: 16px;
+      border-radius: 16px;
+      border: 2px solid #d1d5db;
+      margin-top: 12px;
+    }
+    .ok { background: #ecfdf5; color: #065f46; border-color: #6ee7b7; }
+    .no { background: #fef2f2; color: #991b1b; border-color: #fca5a5; }
+    .muted { color: #6b7280; font-size: 14px; }
+    .hidden { display: none; }
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .tab {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    .tab.active {
+      background: #2563eb;
+      color: white;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card" style="margin-bottom:20px;">
+      <h1>Игра ультиматум для группы</h1>
+      <p>Один файл без сервера. Подходит для быстрого запуска на занятии: случайно делит студентов на роли, собирает ответы и считает, состоялась ли сделка <b>по среднему</b>.</p>
+      <p class="muted">Есть два режима: агрегированный по среднему и парный. Можно открыть локально в браузере как обычный <span class="mono">index.html</span>.</p>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <h2>Настройки</h2>
+      <div class="row">
+        <div>
+          <label for="studentCount">Число студентов</label>
+          <input id="studentCount" type="number" min="2" value="24" />
+        </div>
+        <div>
+          <label for="totalMoney">Сумма в игре</label>
+          <input id="totalMoney" type="number" min="1" value="20" />
+        </div>
+        <div>
+          <label for="mode">Режим подсчета</label>
+          <select id="mode">
+            <option value="average">По среднему</option>
+            <option value="pair">Парный</option>
+          </select>
+        </div>
+        <div>
+          <button id="generateBtn">Сгенерировать роли</button>
+        </div>
+        <div>
+          <button id="newRoundBtn" class="secondary">Новый раунд</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h2>Роли</h2>
+        <p class="muted">Покажите студентам их номер и роль.</p>
+        <div style="margin-bottom:14px;">
+          <h3>Игрок 1</h3>
+          <div id="role1List"></div>
+        </div>
+        <div>
+          <h3>Игрок 2</h3>
+          <div id="role2List"></div>
+        </div>
+        <p id="oddWarning" class="muted hidden" style="margin-top:12px;">Нечетное число студентов: одна группа будет на одного человека больше.</p>
+      </div>
+
+      <div class="card">
+        <h2>Краткая инструкция для аудитории</h2>
+        <div id="modeHint"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+      <h2>Ввод ответов</h2>
+      <div class="tabs">
+        <button class="tab active" data-tab="p1">Игрок 1</button>
+        <button class="tab" data-tab="p2">Игрок 2</button>
+      </div>
+
+      <div id="tab-p1">
+        <p class="muted">Игрок 1 вводит, сколько готов отдать игроку 2.</p>
+        <div id="player1Inputs" class="grid grid-3"></div>
+      </div>
+
+      <div id="tab-p2" class="hidden">
+        <div id="player2AverageBox">
+          <p class="muted">Игрок 2 вводит минимальную сумму, которую готов принять.</p>
+        </div>
+        <div id="player2PairBox" class="hidden">
+          <p class="muted">Игрок 2 видит предложение своей пары и выбирает: принять или отклонить.</p>
+        </div>
+        <div id="player2Inputs" class="grid grid-3"></div>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:20px;">
+      <div class="card">
+        <h2>Итоги</h2>
+        <div id="resultsBox"></div>
+      </div>
+
+      <div class="card">
+        <h2>Действия</h2>
+        <div class="row">
+          <div><button id="calcBtn" class="success">Посчитать результат</button></div>
+          <div><button id="csvBtn" class="secondary">Скачать CSV</button></div>
+          <div><button id="demoBtn" class="secondary">Заполнить демо-данными</button></div>
+          <div><button id="clearBtn" class="warn">Очистить ответы</button></div>
+        </div>
+        <p class="muted" style="margin-top:12px;">CSV пригодится для разбора после пары и графиков в Excel / Google Sheets.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      students: [],
+      role1: [],
+      role2: [],
+      mode: 'average',
+      totalMoney: 20,
+      offers: {},
+      thresholds: {},
+      decisions: {},
+      pairs: []
+    };
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function avg(nums) {
+      if (!nums.length) return 0;
+      return nums.reduce((s, x) => s + x, 0) / nums.length;
+    }
+
+    function median(nums) {
+      if (!nums.length) return 0;
+      const a = [...nums].sort((x, y) => x - y);
+      const m = Math.floor(a.length / 2);
+      return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+    }
+
+    function el(id) {
+      return document.getElementById(id);
+    }
+
+    function currentSettings() {
+      state.totalMoney = Math.max(1, Number(el('totalMoney').value) || 20);
+      state.mode = el('mode').value;
+    }
+
+    function generateRoles() {
+      currentSettings();
+      const count = Math.max(2, Number(el('studentCount').value) || 2);
+      state.students = Array.from({ length: count }, (_, i) => i + 1);
+      const shuffled = shuffle(state.students);
+      const split = Math.floor(count / 2);
+      state.role1 = shuffled.slice(0, split);
+      state.role2 = shuffled.slice(split);
+      state.offers = {};
+      state.thresholds = {};
+      state.decisions = {};
+      state.pairs = [];
+
+      const pairCount = Math.min(state.role1.length, state.role2.length);
+      for (let i = 0; i < pairCount; i++) {
+        state.pairs.push({ p1: state.role1[i], p2: state.role2[i] });
+      }
+
+      renderRoles();
+      renderInstructions();
+      renderInputs();
+      renderResults();
+    }
+
+    function renderRoles() {
+      el('role1List').innerHTML = state.role1.map(id => `<span class="pill">#${id}</span>`).join('') || '<span class="muted">Пока пусто</span>';
+      el('role2List').innerHTML = state.role2.map(id => `<span class="pill">#${id}</span>`).join('') || '<span class="muted">Пока пусто</span>';
+      el('oddWarning').classList.toggle('hidden', state.students.length % 2 === 0);
+    }
+
+    function renderInstructions() {
+      const averageText = `
+        <p><b>Режим по среднему.</b> Игрок 1 пишет, сколько готов отдать. Игрок 2 пишет минимальную сумму, которую готов принять.</p>
+        <p>После этого считаем <b>среднее предложение</b> и <b>средний минимальный порог принятия</b>. Если среднее предложение не ниже среднего порога, считаем, что сделка состоялась.</p>
+      `;
+      const pairText = `
+        <p><b>Парный режим.</b> Каждый игрок 1 случайно сопоставлен с игроком 2. Игрок 1 делает предложение своей паре, игрок 2 видит конкретное предложение и принимает или отклоняет его.</p>
+        <p>В конце считаем количество состоявшихся сделок, среднее предложение и долю принятых офферов.</p>
+      `;
+      el('modeHint').innerHTML = state.mode === 'average' ? averageText : pairText;
+      el('player2AverageBox').classList.toggle('hidden', state.mode !== 'average');
+      el('player2PairBox').classList.toggle('hidden', state.mode !== 'pair');
+    }
+
+    function renderInputs() {
+      const p1Box = el('player1Inputs');
+      const p2Box = el('player2Inputs');
+      p1Box.innerHTML = '';
+      p2Box.innerHTML = '';
+
+      state.role1.forEach(id => {
+        const pair = state.pairs.find(x => x.p1 === id);
+        const pairInfo = pair ? `Пара: игрок 2 — #${pair.p2}` : 'Без пары';
+        const value = state.offers[id] ?? '';
+        const keep = value === '' ? '—' : state.totalMoney - Number(value);
+        const div = document.createElement('div');
+        div.className = 'student';
+        div.innerHTML = `
+          <div><b>Студент #${id}</b></div>
+          <div class="muted" style="margin:6px 0 10px;">${pairInfo}</div>
+          <label>Сколько отдать игроку 2</label>
+          <input type="number" min="0" max="${state.totalMoney}" value="${value}" data-offer="${id}" />
+          <div class="muted" style="margin-top:8px;">Оставляет себе: <b>${keep}</b></div>
+        `;
+        p1Box.appendChild(div);
+      });
+
+      if (state.mode === 'average') {
+        state.role2.forEach(id => {
+          const value = state.thresholds[id] ?? '';
+          const div = document.createElement('div');
+          div.className = 'student';
+          div.innerHTML = `
+            <div><b>Студент #${id}</b></div>
+            <label style="margin-top:10px;">Минимум, который готов принять</label>
+            <input type="number" min="0" max="${state.totalMoney}" value="${value}" data-threshold="${id}" />
+          `;
+          p2Box.appendChild(div);
+        });
+      } else {
+        state.role2.forEach(id => {
+          const pair = state.pairs.find(x => x.p2 === id);
+          const offer = pair ? state.offers[pair.p1] : null;
+          const decision = state.decisions[id] ?? '';
+          const div = document.createElement('div');
+          div.className = 'student';
+          div.innerHTML = `
+            <div><b>Студент #${id}</b></div>
+            <div class="muted" style="margin:6px 0 10px;">Пара: игрок 1 — ${pair ? '#' + pair.p1 : 'нет пары'}</div>
+            <div style="margin-bottom:10px;">Предложение: <b>${offer ?? '—'}</b> из <b>${state.totalMoney}</b></div>
+            <label>Решение</label>
+            <select data-decision="${id}">
+              <option value="">Выберите</option>
+              <option value="accept" ${decision === 'accept' ? 'selected' : ''}>Принять</option>
+              <option value="reject" ${decision === 'reject' ? 'selected' : ''}>Отклонить</option>
+            </select>
+          `;
+          p2Box.appendChild(div);
+        });
+      }
+
+      bindInputs();
+    }
+
+    function bindInputs() {
+      document.querySelectorAll('[data-offer]').forEach(inp => {
+        inp.addEventListener('input', e => {
+          const id = Number(e.target.dataset.offer);
+          let value = e.target.value === '' ? '' : Number(e.target.value);
+          if (value !== '') {
+            value = Math.max(0, Math.min(state.totalMoney, value));
+          }
+          state.offers[id] = value;
+          if (state.mode === 'pair') renderInputs();
+          else renderResults();
+        });
+      });
+
+      document.querySelectorAll('[data-threshold]').forEach(inp => {
+        inp.addEventListener('input', e => {
+          const id = Number(e.target.dataset.threshold);
+          let value = e.target.value === '' ? '' : Number(e.target.value);
+          if (value !== '') {
+            value = Math.max(0, Math.min(state.totalMoney, value));
+          }
+          state.thresholds[id] = value;
+          renderResults();
+        });
+      });
+
+      document.querySelectorAll('[data-decision]').forEach(sel => {
+        sel.addEventListener('change', e => {
+          const id = Number(e.target.dataset.decision);
+          state.decisions[id] = e.target.value;
+          renderResults();
+        });
+      });
+    }
+
+    function renderResults() {
+      const box = el('resultsBox');
+      if (!state.students.length) {
+        box.innerHTML = '<p class="muted">Сначала сгенерируйте роли.</p>';
+        return;
+      }
+
+      if (state.mode === 'average') {
+        const offers = Object.values(state.offers).filter(v => v !== '' && !Number.isNaN(v));
+        const thresholds = Object.values(state.thresholds).filter(v => v !== '' && !Number.isNaN(v));
+        const avgOffer = avg(offers);
+        const medOffer = median(offers);
+        const avgThreshold = avg(thresholds);
+        const medThreshold = median(thresholds);
+        const deal = offers.length && thresholds.length && avgOffer >= avgThreshold;
+
+        box.innerHTML = `
+          <div class="stat"><span>Среднее предложение игроку 2</span><b>${avgOffer.toFixed(2)}</b></div>
+          <div class="stat"><span>Средний минимальный приемлемый уровень</span><b>${avgThreshold.toFixed(2)}</b></div>
+          <div class="stat"><span>Медиана предложения</span><b>${medOffer.toFixed(2)}</b></div>
+          <div class="stat"><span>Медиана минимального порога</span><b>${medThreshold.toFixed(2)}</b></div>
+          <div class="stat"><span>Ответов игроков 1</span><b>${offers.length}</b></div>
+          <div class="stat"><span>Ответов игроков 2</span><b>${thresholds.length}</b></div>
+          <div class="big ${deal ? 'ok' : 'no'}">${deal ? 'Сделка по среднему состоялась' : 'Сделка по среднему не состоялась'}</div>
+        `;
+      } else {
+        const completedPairs = state.pairs.map(pair => {
+          const offer = state.offers[pair.p1];
+          const decision = state.decisions[pair.p2];
+          const accepted = decision === 'accept';
+          const ready = offer !== undefined && offer !== '' && !!decision;
+          return { ...pair, offer, decision, accepted, ready };
+        });
+
+        const readyPairs = completedPairs.filter(x => x.ready);
+        const acceptedCount = readyPairs.filter(x => x.accepted).length;
+        const rejectedCount = readyPairs.filter(x => x.decision === 'reject').length;
+        const acceptanceRate = readyPairs.length ? (acceptedCount / readyPairs.length) * 100 : 0;
+        const avgOffer = avg(completedPairs.map(x => Number(x.offer)).filter(v => !Number.isNaN(v)));
+
+        const rows = completedPairs.map(x => `
+          <div class="stat">
+            <span>Пара #${x.p1} → #${x.p2}</span>
+            <span>Оффер: <b>${x.offer ?? '—'}</b> | Решение: <b>${x.decision === 'accept' ? 'принять' : x.decision === 'reject' ? 'отклонить' : '—'}</b></span>
+          </div>
+        `).join('');
+
+        box.innerHTML = `
+          <div class="stat"><span>Всего пар</span><b>${state.pairs.length}</b></div>
+          <div class="stat"><span>Заполненных пар</span><b>${readyPairs.length}</b></div>
+          <div class="stat"><span>Среднее предложение игрока 1</span><b>${avgOffer.toFixed(2)}</b></div>
+          <div class="stat"><span>Принято</span><b>${acceptedCount}</b></div>
+          <div class="stat"><span>Отклонено</span><b>${rejectedCount}</b></div>
+          <div class="stat"><span>Доля принятия</span><b>${acceptanceRate.toFixed(1)}%</b></div>
+          <div class="big ${acceptedCount > 0 ? 'ok' : 'no'}">Состоявшихся сделок: ${acceptedCount}</div>
+          <div style="margin-top:12px;">
+            <h3 style="margin-bottom:10px;">Пары</h3>
+            ${rows || '<p class="muted">Пар пока нет.</p>'}
+          </div>
+        `;
+      }
+    }
+
+    function clearAnswers() {
+      state.offers = {};
+      state.thresholds = {};
+      state.decisions = {};
+      renderInputs();
+      renderResults();
+    }
+
+    function demoFill() {
+      state.role1.forEach(id => {
+        state.offers[id] = Math.floor(Math.random() * (state.totalMoney + 1));
+      });
+      if (state.mode === 'average') {
+        state.role2.forEach(id => {
+          state.thresholds[id] = Math.floor(Math.random() * (state.totalMoney + 1));
+        });
+      } else {
+        state.role2.forEach(id => {
+          state.decisions[id] = Math.random() > 0.35 ? 'accept' : 'reject';
+        });
+      }
+      renderInputs();
+      renderResults();
+    }
+
+    function exportCSV() {
+      const rows = [];
+      rows.push(['student_id', 'role', 'offer_to_player2', 'keep_for_player1', 'min_accept', 'decision']);
+
+      state.role1.forEach(id => {
+        const offer = state.offers[id] ?? '';
+        const keep = offer === '' ? '' : state.totalMoney - Number(offer);
+        rows.push([id, 1, offer, keep, '', '']);
+      });
+
+      state.role2.forEach(id => {
+        const threshold = state.thresholds[id] ?? '';
+        const decision = state.decisions[id] ?? '';
+        rows.push([id, 2, '', '', threshold, decision]);
+      });
+
+      rows.push([]);
+      rows.push(['mode', state.mode]);
+      rows.push(['total_money', state.totalMoney]);
+      if (state.mode === 'pair') {
+        rows.push([]);
+        rows.push(['pair_player1', 'pair_player2', 'offer', 'decision']);
+        state.pairs.forEach(pair => {
+          rows.push([pair.p1, pair.p2, state.offers[pair.p1] ?? '', state.decisions[pair.p2] ?? '']);
+        });
+      }
+
+      const csv = rows.map(r => r.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ultimatum_game_results.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.querySelectorAll('.tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+        btn.classList.add('active');
+        el('tab-p1').classList.toggle('hidden', btn.dataset.tab !== 'p1');
+        el('tab-p2').classList.toggle('hidden', btn.dataset.tab !== 'p2');
+      });
+    });
+
+    el('generateBtn').addEventListener('click', generateRoles);
+    el('newRoundBtn').addEventListener('click', generateRoles);
+    el('calcBtn').addEventListener('click', () => { currentSettings(); renderInstructions(); renderResults(); });
+    el('csvBtn').addEventListener('click', exportCSV);
+    el('demoBtn').addEventListener('click', demoFill);
+    el('clearBtn').addEventListener('click', clearAnswers);
+    el('mode').addEventListener('change', () => {
+      currentSettings();
+      renderInstructions();
+      renderInputs();
+      renderResults();
+    });
+    el('totalMoney').addEventListener('change', () => {
+      currentSettings();
+      renderInputs();
+      renderResults();
+    });
+
+    generateRoles();
+  </script>
+</body>
+</html>
