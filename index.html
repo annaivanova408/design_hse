@@ -6,35 +6,645 @@
   <title>Ultimatum Game — GitHub Pages + Supabase</title>
   <style>
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Inter, Arial, sans-serif;
-      background: linear-gradient(180deg, #f7fbff 0%, #edf4ff 100%);
-      color: #172033;
-    }
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: linear-gradient(180deg, #f7fbff 0%, #edf4ff 100%); color: #172033; }
     .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
     .grid { display: grid; gap: 18px; }
     .grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
-    .card {
-      background: rgba(255,255,255,0.96);
-      border: 1px solid #dbe5f4;
-      border-radius: 24px;
-      padding: 22px;
-      box-shadow: 0 18px 50px rgba(28,54,102,0.10);
-    }
+    .card { background: rgba(255,255,255,0.96); border: 1px solid #dbe5f4; border-radius: 24px; padding: 22px; box-shadow: 0 18px 50px rgba(28,54,102,0.10); }
     h1, h2, h3 { margin: 0 0 10px; }
     p { line-height: 1.5; }
     .muted { color: #5f6f8c; }
     .tiny { color: #5f6f8c; font-size: 12px; }
     .row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); align-items: end; }
     label { display: block; font-weight: 700; margin-bottom: 6px; font-size: 14px; }
-    input, button, select {
-      width: 100%;
-      border-radius: 14px;
-      border: 1px solid #cfd9ea;
-      padding: 12px 14px;
-      font-size: 15px;
+    input, button, select { width: 100%; border-radius: 14px; border: 1px solid #cfd9ea; padding: 12px 14px; font-size: 15px; }
+    input:focus, select:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,0.12); }
+    button { border: none; cursor: pointer; background: #2563eb; color: white; font-weight: 800; }
+    button.secondary { background: #e7eefb; color: #172033; }
+    button.green { background: #059669; }
+    button.red { background: #dc2626; }
+    .pill { display: inline-block; padding: 7px 12px; border-radius: 999px; background: #edf4ff; color: #21417d; font-weight: 800; margin-right: 8px; margin-bottom: 8px; font-size: 13px; }
+    .stat { display: flex; justify-content: space-between; gap: 14px; border: 1px solid #dde6f6; background: #fbfdff; border-radius: 16px; padding: 14px 16px; margin-bottom: 10px; }
+    .successBox, .dangerBox, .infoBox, .warnBox { border-radius: 18px; padding: 16px 18px; margin-top: 12px; font-weight: 700; }
+    .successBox { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+    .dangerBox { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+    .infoBox { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+    .warnBox { background: #fff7ed; border: 1px solid #fdba74; color: #9a3412; }
+    .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #0f172a; color: #dbeafe; border-radius: 14px; padding: 10px 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
+    .choice { border: 1px solid #dde6f6; background: #fbfdff; border-radius: 18px; padding: 16px; }
+    .nav { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .center { text-align: center; }
+    .big { font-size: 28px; font-weight: 900; line-height: 1.15; }
+    .table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .table th, .table td { padding: 10px 8px; border-bottom: 1px solid #e5edf8; text-align: left; font-size: 14px; }
+    .page { max-width: 760px; margin: 0 auto; }
+    textarea { width: 100%; min-height: 220px; border-radius: 16px; border: 1px solid #cfd9ea; padding: 12px 14px; font-size: 14px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    @media (max-width: 820px) { .wrap { padding: 14px; } .card { padding: 18px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap" id="app"></div>
+
+  <script>
+    const SUPABASE_URL = 'https://szmqmtauwsjkllghposu.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6bXFtdGF1d3Nqa2xsZ2hwb3N1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxMzEwMTgsImV4cCI6MjA5MDcwNzAxOH0.qnuIM8MEiGjsaFYDEySZgDHsVrruFt2M9NM3iKnocLo';
+    const SESSION_STORAGE_KEY = 'ultimatum-gh-pages-player';
+    const DRAFT_STORAGE_KEY = 'ultimatum-gh-pages-draft';
+    const DEFAULT_TOTAL_MONEY = 20;
+    const ODD_ACCEPT_THRESHOLD = 10;
+    const ODD_DEFAULT_OFFER = 10;
+
+    function q(sel) { return document.querySelector(sel); }
+    function randomCode(len = 6) { return Math.random().toString(36).slice(2, 2 + len).toUpperCase(); }
+    function randomId() { return 'p_' + Math.random().toString(36).slice(2, 10); }
+    function randomRole() { return Math.random() < 0.5 ? 1 : 2; }
+    function average(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0; }
+    function escapeHtml(s) { return String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;'); }
+
+    function hasConfig() {
+      return SUPABASE_URL.startsWith('http') && !SUPABASE_URL.includes('PASTE_YOUR') && !SUPABASE_ANON_KEY.includes('PASTE_YOUR');
     }
+
+    function api(path, options = {}) {
+      return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+        ...options,
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: options.prefer || 'return=representation',
+          ...(options.headers || {})
+        }
+      });
+    }
+
+    function parseRoute() {
+      const url = new URL(window.location.href);
+      return {
+        screen: url.searchParams.get('screen') || 'home',
+        session: url.searchParams.get('session') || '',
+        host: url.searchParams.get('host') || ''
+      };
+    }
+
+    function go(params) {
+      const url = new URL(window.location.href);
+      url.search = '';
+      Object.entries(params).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); });
+      window.history.pushState({}, '', url.toString());
+      render();
+    }
+
+    function getSavedPlayer(sessionCode) {
+      try {
+        const all = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || '{}');
+        return all[sessionCode] || null;
+      } catch { return null; }
+    }
+
+    function savePlayer(sessionCode, value) {
+      const all = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || '{}');
+      all[sessionCode] = value;
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(all));
+    }
+
+    function getDraft(sessionCode) {
+      try {
+        const all = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) || '{}');
+        return all[sessionCode] ?? '';
+      } catch { return ''; }
+    }
+
+    function saveDraft(sessionCode, value) {
+      const all = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) || '{}');
+      all[sessionCode] = value;
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(all));
+    }
+
+    function clearDraft(sessionCode) {
+      const all = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) || '{}');
+      delete all[sessionCode];
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(all));
+    }
+
+    async function createSession() {
+      const session_code = randomCode(6);
+      const host_code = randomCode(10);
+      const body = [{ session_code, host_code, total_money: DEFAULT_TOTAL_MONEY, phase: 'join' }];
+      const res = await api('game_sessions', { method: 'POST', body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return data[0];
+    }
+
+    async function loadSession(sessionCode) {
+      const res = await api(`game_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=*`, { method: 'GET', headers: { Prefer: '' } });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return data[0] || null;
+    }
+
+    async function updateSession(sessionCode, patch) {
+      const res = await api(`game_sessions?session_code=eq.${encodeURIComponent(sessionCode)}`, { method: 'PATCH', body: JSON.stringify(patch) });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return data[0] || null;
+    }
+
+    async function joinSession(sessionCode, nickname) {
+      const participant_code = randomId();
+      const role = randomRole();
+      const body = [{ session_code: sessionCode, participant_code, nickname, role, done: false }];
+      const res = await api('game_responses', { method: 'POST', body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return data[0];
+    }
+
+    async function loadParticipant(sessionCode, participantCode) {
+      const res = await api(`game_responses?session_code=eq.${encodeURIComponent(sessionCode)}&participant_code=eq.${encodeURIComponent(participantCode)}&select=*`, { method: 'GET', headers: { Prefer: '' } });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return data[0] || null;
+    }
+
+    async function updateParticipant(sessionCode, participantCode, patch) {
+      const res = await api(`game_responses?session_code=eq.${encodeURIComponent(sessionCode)}&participant_code=eq.${encodeURIComponent(participantCode)}`, { method: 'PATCH', body: JSON.stringify(patch) });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return data[0] || null;
+    }
+
+    async function loadResponses(sessionCode) {
+      const res = await api(`game_responses?session_code=eq.${encodeURIComponent(sessionCode)}&select=*&order=created_at.asc`, { method: 'GET', headers: { Prefer: '' } });
+      if (!res.ok) throw new Error(await res.text());
+      return await res.json();
+    }
+
+    function buildPairs(responses) {
+      const role1 = responses.filter(x => x.role === 1).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const role2 = responses.filter(x => x.role === 2).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const pairCount = Math.min(role1.length, role2.length);
+      const pairs = [];
+      for (let i = 0; i < pairCount; i++) {
+        pairs.push({ proposer: role1[i], responder: role2[i], type: 'normal' });
+      }
+      if (role1.length > role2.length) {
+        for (let i = pairCount; i < role1.length; i++) {
+          pairs.push({ proposer: role1[i], responder: null, type: 'odd_proposer' });
+        }
+      }
+      if (role2.length > role1.length) {
+        for (let i = pairCount; i < role2.length; i++) {
+          pairs.push({ proposer: null, responder: role2[i], type: 'odd_responder' });
+        }
+      }
+      return pairs;
+    }
+
+    function pairForParticipant(responses, participantCode) {
+      const pairs = buildPairs(responses);
+      return pairs.find(p => (p.proposer && p.proposer.participant_code === participantCode) || (p.responder && p.responder.participant_code === participantCode)) || null;
+    }
+
+    function computeResult(session, responses) {
+      const pairs = buildPairs(responses);
+      let acceptedDeals = 0;
+      let rejectedDeals = 0;
+      let pendingDeals = 0;
+      let oddAutoAccepted = 0;
+      let oddAutoOffered = 0;
+
+      const offerValues = [];
+
+      for (const pair of pairs) {
+        if (pair.type === 'normal') {
+          const offer = pair.proposer && Number.isFinite(pair.proposer.offer) ? pair.proposer.offer : null;
+          if (offer !== null) offerValues.push(offer);
+          if (offer === null || pair.responder?.accept === null || pair.responder?.accept === undefined) {
+            pendingDeals += 1;
+          } else if (pair.responder.accept === true) {
+            acceptedDeals += 1;
+          } else {
+            rejectedDeals += 1;
+          }
+        } else if (pair.type === 'odd_proposer') {
+          const offer = pair.proposer && Number.isFinite(pair.proposer.offer) ? pair.proposer.offer : null;
+          if (offer !== null) offerValues.push(offer);
+          if (offer === null) {
+            pendingDeals += 1;
+          } else if (offer > ODD_ACCEPT_THRESHOLD) {
+            acceptedDeals += 1;
+            oddAutoAccepted += 1;
+          } else {
+            rejectedDeals += 1;
+            oddAutoAccepted += 1;
+          }
+        } else if (pair.type === 'odd_responder') {
+          offerValues.push(ODD_DEFAULT_OFFER);
+          oddAutoOffered += 1;
+          if (pair.responder?.accept === null || pair.responder?.accept === undefined) {
+            pendingDeals += 1;
+          } else if (pair.responder.accept === true) {
+            acceptedDeals += 1;
+          } else {
+            rejectedDeals += 1;
+          }
+        }
+      }
+
+      const completedDeals = acceptedDeals + rejectedDeals;
+      return {
+        pairs,
+        avgOffer: average(offerValues),
+        acceptedDeals,
+        rejectedDeals,
+        pendingDeals,
+        completedDeals,
+        oddAutoAccepted,
+        oddAutoOffered,
+        totalParticipants: responses.length,
+        role1Count: responses.filter(x => x.role === 1).length,
+        role2Count: responses.filter(x => x.role === 2).length,
+        offerDoneCount: responses.filter(x => x.role === 1 && x.done).length,
+        acceptDoneCount: responses.filter(x => x.role === 2 && x.done).length,
+        totalMoney: session.total_money
+      };
+    }
+
+    function configHelp() {
+      return `-- SQL: run in Supabase SQL Editor --\n\ncreate table if not exists public.game_sessions (\n  id bigint generated by default as identity primary key,\n  session_code text unique not null,\n  host_code text unique not null,\n  total_money integer not null default 20,\n  phase text not null default 'join',\n  created_at timestamptz not null default now()\n);\n\ncreate table if not exists public.game_responses (\n  id bigint generated by default as identity primary key,\n  session_code text not null references public.game_sessions(session_code) on delete cascade,\n  participant_code text not null,\n  nickname text not null default 'Студент',\n  role integer not null check (role in (1,2)),\n  offer integer,\n  accept boolean,\n  done boolean not null default false,\n  created_at timestamptz not null default now(),\n  unique(session_code, participant_code)\n);\n\nalter table public.game_sessions enable row level security;\nalter table public.game_responses enable row level security;\n\ndrop policy if exists \"public read sessions\" on public.game_sessions;\ncreate policy \"public read sessions\" on public.game_sessions for select using (true);\n\ndrop policy if exists \"public insert sessions\" on public.game_sessions;\ncreate policy \"public insert sessions\" on public.game_sessions for insert with check (true);\n\ndrop policy if exists \"public update sessions\" on public.game_sessions;\ncreate policy \"public update sessions\" on public.game_sessions for update using (true) with check (true);\n\ndrop policy if exists \"public read responses\" on public.game_responses;\ncreate policy \"public read responses\" on public.game_responses for select using (true);\n\ndrop policy if exists \"public insert responses\" on public.game_responses;\ncreate policy \"public insert responses\" on public.game_responses for insert with check (true);\n\ndrop policy if exists \"public update responses\" on public.game_responses;\ncreate policy \"public update responses\" on public.game_responses for update using (true) with check (true);\n\n-- end SQL --`;
+    }
+
+    async function render() {
+      const { screen, session, host } = parseRoute();
+      const app = document.getElementById('app');
+
+      if (!hasConfig()) {
+        app.innerHTML = `
+          <div class="card">
+            <h1>Нужно вставить настройки Supabase</h1>
+            <div class="infoBox">1) Создайте проект в Supabase. 2) Выполните SQL ниже. 3) Вставьте URL проекта и anon key в верх файла. 4) Залейте этот файл как <b>index.html</b> в GitHub Pages.</div>
+            <h3 style="margin-top:14px;">SQL для базы</h3>
+            <textarea readonly>${configHelp()}</textarea>
+            <div class="nav"><button onclick="navigator.clipboard.writeText(document.querySelector('textarea').value)">Скопировать SQL</button></div>
+          </div>
+        `;
+        return;
+      }
+
+      try {
+        if (screen === 'join') {
+          app.innerHTML = await renderJoinScreen(session);
+          bindJoinScreen(session);
+          return;
+        }
+        if (screen === 'play') {
+          app.innerHTML = await renderPlayScreen(session);
+          bindPlayScreen(session);
+          return;
+        }
+        if (screen === 'host') {
+          app.innerHTML = await renderHostScreen(session, host);
+          bindHostScreen(session, host);
+          return;
+        }
+        if (screen === 'result') {
+          app.innerHTML = await renderResultScreen(session);
+          bindResultScreen(session);
+          return;
+        }
+        app.innerHTML = renderHomeScreen();
+        bindHomeScreen();
+      } catch (err) {
+        app.innerHTML = `
+          <div class="card">
+            <h1>Ошибка</h1>
+            <div class="dangerBox">${escapeHtml(err.message || String(err))}</div>
+            <div class="nav"><button class="secondary" onclick="location.reload()">Обновить</button></div>
+          </div>
+        `;
+      }
+    }
+
+    function renderHomeScreen() {
+      return `
+        <div class="grid grid-2">
+          <div class="card">
+            <h1>Ultimatum Game</h1>
+            <p class="muted">Новая логика: игрок 1 предлагает, игрок 2 либо соглашается, либо нет. Число участников заранее не задается. Сумма по умолчанию — <b>${DEFAULT_TOTAL_MONEY}</b>.</p>
+            <div class="warnBox">Если участников нечетное число, то действует правило автоматического добора: лишний игрок 1 автоматически получает ответ <b>согласен</b>, если предложил больше <b>${ODD_ACCEPT_THRESHOLD}</b>. Лишнему игроку 2 автоматически подставляется предложение <b>${ODD_DEFAULT_OFFER}</b>.</div>
+          </div>
+          <div class="card center">
+            <h2>Новая сессия</h2>
+            <p class="muted">Просто создайте сессию. Количество игроков вводить не нужно.</p>
+            <div class="nav" style="justify-content:center;"><button id="createSessionBtn">Создать новую сессию</button></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function bindHomeScreen() {
+      q('#createSessionBtn').onclick = async () => {
+        q('#createSessionBtn').disabled = true;
+        q('#createSessionBtn').textContent = 'Создаю...';
+        const session = await createSession();
+        go({ screen: 'host', session: session.session_code, host: session.host_code });
+      };
+    }
+
+    async function renderJoinScreen(sessionCode) {
+      const session = await loadSession(sessionCode);
+      if (!session) return `<div class="card"><h1>Сессия не найдена</h1></div>`;
+      if (session.phase === 'result' || session.phase === 'closed') {
+        return `<div class="page"><div class="card center"><h1>Вход закрыт</h1><p class="muted">Раунд уже завершен.</p><div class="nav" style="justify-content:center;"><a href="?screen=result&session=${encodeURIComponent(sessionCode)}"><button class="secondary">Страница результата</button></a></div></div></div>`;
+      }
+      return `
+        <div class="page">
+          <div class="card center">
+            <h1>Вход в игру</h1>
+            <p class="muted">Сессия: <b>${escapeHtml(sessionCode)}</b></p>
+            <p class="muted">Вы получите случайную роль: <b>игрок 1</b> или <b>игрок 2</b>.</p>
+            <div class="row" style="text-align:left; margin-top:16px;">
+              <div>
+                <label>Ваше имя или номер</label>
+                <input id="joinNickname" placeholder="Например, 12 или Алина" />
+              </div>
+              <div>
+                <button id="joinSessionBtn">Зайти</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function bindJoinScreen(sessionCode) {
+      q('#joinSessionBtn').onclick = async () => {
+        const nickname = (q('#joinNickname').value || '').trim() || 'Студент';
+        const participant = await joinSession(sessionCode, nickname);
+        savePlayer(sessionCode, participant.participant_code);
+        go({ screen: 'play', session: sessionCode });
+      };
+    }
+
+    async function renderPlayScreen(sessionCode) {
+      const session = await loadSession(sessionCode);
+      if (!session) return `<div class="card"><h1>Сессия не найдена</h1></div>`;
+      const participantCode = getSavedPlayer(sessionCode);
+      if (!participantCode) {
+        return `<div class="page"><div class="card center"><h1>Участник не найден</h1><p class="muted">Сначала зайдите через страницу входа.</p><div class="nav" style="justify-content:center;"><a href="?screen=join&session=${encodeURIComponent(sessionCode)}"><button>Перейти ко входу</button></a></div></div></div>`;
+      }
+      const participant = await loadParticipant(sessionCode, participantCode);
+      if (!participant) return `<div class="card"><h1>Участник не найден</h1></div>`;
+      const responses = await loadResponses(sessionCode);
+      const pair = pairForParticipant(responses, participantCode);
+      const currentDraft = getDraft(sessionCode);
+      const currentOfferValue = Number.isFinite(participant.offer) ? participant.offer : (currentDraft === '' ? '' : Number(currentDraft));
+      const keep = currentOfferValue === '' || Number.isNaN(currentOfferValue) ? '—' : session.total_money - currentOfferValue;
+
+      let content = '';
+      if (participant.done) {
+        if (pair?.type === 'odd_proposer') {
+          const offer = Number.isFinite(participant.offer) ? participant.offer : null;
+          const accepted = offer !== null && offer > ODD_ACCEPT_THRESHOLD;
+          content = `<div class="successBox">Ваш ответ сохранен.</div><div class="infoBox">У вас не оказалось пары. По правилу нечетного числа участников ваше предложение автоматически ${accepted ? 'принято' : 'отклонено'}.</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>`;
+        } else if (pair?.type === 'odd_responder') {
+          content = `<div class="successBox">Ваш ответ сохранен.</div><div class="infoBox">У вас не оказалось пары. По правилу нечетного числа участников вам автоматически подставили предложение <b>${ODD_DEFAULT_OFFER}</b>.</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>`;
+        } else {
+          content = `<div class="successBox">Ваш ответ сохранен.</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button><a href="?screen=result&session=${encodeURIComponent(sessionCode)}"><button class="secondary">Страница результата</button></a></div>`;
+        }
+      } else if (participant.role === 1) {
+        content = `
+          <div class="choice">
+            <h3>Сделайте предложение</h3>
+            <p class="muted">Сколько из <b>${session.total_money}</b> вы готовы отдать игроку 2?</p>
+            <label>Сумма для игрока 2</label>
+            <input id="offerInput" type="number" min="0" max="${session.total_money}" value="${currentOfferValue}" />
+            <p class="tiny" id="keepHint">Себе останется: <b>${keep}</b></p>
+            <div class="nav"><button id="submitOfferBtn">Отправить</button><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>
+          </div>
+        `;
+      } else {
+        if (!pair) {
+          content = `<div class="infoBox">Пока пара еще не сформировалась. Подождите немного и нажмите «Обновить».</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>`;
+        } else if (pair.type === 'odd_responder') {
+          content = `
+            <div class="choice">
+              <h3>Примите решение</h3>
+              <p>У вас не оказалось пары. По правилу нечетного числа участников вам автоматически подставляется предложение: <b>${ODD_DEFAULT_OFFER}</b> из <b>${session.total_money}</b>.</p>
+              <p class="muted">Вы согласны принять такое предложение?</p>
+              <div class="row">
+                <div><button id="acceptBtn" class="green">Принять</button></div>
+                <div><button id="rejectBtn" class="red">Отклонить</button></div>
+                <div><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>
+              </div>
+            </div>
+          `;
+        } else {
+          const proposerOffer = Number.isFinite(pair.proposer?.offer) ? pair.proposer.offer : null;
+          if (proposerOffer === null) {
+            content = `<div class="infoBox">Ваш игрок 1 еще не сделал предложение. Подождите немного и нажмите «Обновить».</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>`;
+          } else {
+            content = `
+              <div class="choice">
+                <h3>Примите решение</h3>
+                <p>Игрок 1 предлагает вам: <b>${proposerOffer}</b> из <b>${session.total_money}</b>.</p>
+                <p class="muted">Вы согласны принять это предложение?</p>
+                <div class="row">
+                  <div><button id="acceptBtn" class="green">Принять</button></div>
+                  <div><button id="rejectBtn" class="red">Отклонить</button></div>
+                  <div><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>
+                </div>
+              </div>
+            `;
+          }
+        }
+      }
+
+      return `
+        <div class="page">
+          <div class="card">
+            <div class="pill">${escapeHtml(participant.nickname)}</div>
+            <h1>Ваша роль: игрок ${participant.role}</h1>
+            <p class="muted">Общая сумма: <b>${session.total_money}</b></p>
+            ${content}
+          </div>
+        </div>
+      `;
+    }
+
+    function bindPlayScreen(sessionCode) {
+      const participantCode = getSavedPlayer(sessionCode);
+      if (!participantCode) return;
+
+      if (q('#refreshPlayerBtn')) {
+        q('#refreshPlayerBtn').onclick = () => render();
+      }
+
+      const offerInput = q('#offerInput');
+      if (offerInput && q('#keepHint')) {
+        offerInput.oninput = () => {
+          const sessionTotal = Number(offerInput.max || DEFAULT_TOTAL_MONEY);
+          const raw = offerInput.value;
+          saveDraft(sessionCode, raw);
+          const value = raw === '' ? '' : Math.max(0, Math.min(sessionTotal, Number(raw) || 0));
+          q('#keepHint').innerHTML = `Себе останется: <b>${value === '' ? '—' : sessionTotal - value}</b>`;
+        };
+      }
+      if (q('#submitOfferBtn')) {
+        q('#submitOfferBtn').onclick = async () => {
+          const session = await loadSession(sessionCode);
+          const raw = q('#offerInput').value;
+          const value = raw === '' ? NaN : Math.max(0, Math.min(session.total_money, Number(raw)));
+          if (!Number.isFinite(value)) return;
+          q('#submitOfferBtn').disabled = true;
+          await updateParticipant(sessionCode, participantCode, { offer: value, done: true });
+          clearDraft(sessionCode);
+          render();
+        };
+      }
+      if (q('#acceptBtn')) {
+        q('#acceptBtn').onclick = async () => {
+          q('#acceptBtn').disabled = true;
+          if (q('#rejectBtn')) q('#rejectBtn').disabled = true;
+          await updateParticipant(sessionCode, participantCode, { accept: true, done: true });
+          render();
+        };
+      }
+      if (q('#rejectBtn')) {
+        q('#rejectBtn').onclick = async () => {
+          q('#rejectBtn').disabled = true;
+          if (q('#acceptBtn')) q('#acceptBtn').disabled = true;
+          await updateParticipant(sessionCode, participantCode, { accept: false, done: true });
+          render();
+        };
+      }
+    }
+
+    async function renderHostScreen(sessionCode, hostCode) {
+      const session = await loadSession(sessionCode);
+      if (!session) return `<div class="card"><h1>Сессия не найдена</h1></div>`;
+      if (hostCode !== session.host_code) {
+        return `<div class="card"><h1>Неверная ссылка преподавателя</h1><p class="muted">Откройте правильную host-ссылку.</p></div>`;
+      }
+      const responses = await loadResponses(sessionCode);
+      const result = computeResult(session, responses);
+      const joinUrl = `${location.origin}${location.pathname}?screen=join&session=${encodeURIComponent(sessionCode)}`;
+      const resultUrl = `${location.origin}${location.pathname}?screen=result&session=${encodeURIComponent(sessionCode)}`;
+      const hostUrl = `${location.origin}${location.pathname}?screen=host&session=${encodeURIComponent(sessionCode)}&host=${encodeURIComponent(hostCode)}`;
+
+      return `
+        <div class="grid grid-2">
+          <div class="card">
+            <h1>Панель преподавателя</h1>
+            <div class="stat"><span>Код сессии</span><b>${escapeHtml(sessionCode)}</b></div>
+            <div class="stat"><span>Статус</span><b>${escapeHtml(session.phase)}</b></div>
+            <div class="stat"><span>Сумма в игре</span><b>${session.total_money}</b></div>
+            <div class="nav">
+              <button id="refreshHostBtn" class="secondary">Обновить</button>
+              <button id="finalizeBtn">Подвести итог</button>
+              <button id="closeBtn" class="secondary">Закрыть вход</button>
+            </div>
+            <div class="warnBox">Пары формируются автоматически по порядку входа внутри ролей. Если один игрок остается без пары, применяется правило нечетного числа участников.</div>
+            <p class="tiny">Join</p>
+            <div class="code">${escapeHtml(joinUrl)}</div>
+            <p class="tiny" style="margin-top:10px;">Result</p>
+            <div class="code">${escapeHtml(resultUrl)}</div>
+            <p class="tiny" style="margin-top:10px;">Host</p>
+            <div class="code">${escapeHtml(hostUrl)}</div>
+          </div>
+          <div class="card">
+            <h2>Живая статистика</h2>
+            <div class="stat"><span>Участников</span><b>${result.totalParticipants}</b></div>
+            <div class="stat"><span>Игроки 1</span><b>${result.role1Count}</b></div>
+            <div class="stat"><span>Игроки 2</span><b>${result.role2Count}</b></div>
+            <div class="stat"><span>Ответили игроки 1</span><b>${result.offerDoneCount}</b></div>
+            <div class="stat"><span>Ответили игроки 2</span><b>${result.acceptDoneCount}</b></div>
+            <div class="stat"><span>Среднее предложение</span><b>${result.avgOffer.toFixed(2)}</b></div>
+            <div class="stat"><span>Принято сделок</span><b>${result.acceptedDeals}</b></div>
+            <div class="stat"><span>Отклонено сделок</span><b>${result.rejectedDeals}</b></div>
+            <div class="stat"><span>Ожидают решения</span><b>${result.pendingDeals}</b></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:18px;">
+          <h2>Пары</h2>
+          ${result.pairs.length ? `
+            <table class="table">
+              <thead><tr><th>Игрок 1</th><th>Оффер</th><th>Игрок 2</th><th>Решение</th><th>Тип</th></tr></thead>
+              <tbody>
+                ${result.pairs.map(pair => {
+                  const proposerName = pair.proposer ? escapeHtml(pair.proposer.nickname) : '—';
+                  const responderName = pair.responder ? escapeHtml(pair.responder.nickname) : '—';
+                  const offer = pair.type === 'odd_responder' ? ODD_DEFAULT_OFFER : (Number.isFinite(pair.proposer?.offer) ? pair.proposer.offer : '—');
+                  let decision = '—';
+                  let type = 'обычная';
+                  if (pair.type === 'normal') {
+                    decision = pair.responder?.accept === true ? 'принял' : pair.responder?.accept === false ? 'отклонил' : 'ждет';
+                  } else if (pair.type === 'odd_proposer') {
+                    type = 'лишний игрок 1';
+                    if (Number.isFinite(pair.proposer?.offer)) {
+                      decision = pair.proposer.offer > ODD_ACCEPT_THRESHOLD ? `автопринятие (> ${ODD_ACCEPT_THRESHOLD})` : `автоотклонение (<= ${ODD_ACCEPT_THRESHOLD})`;
+                    } else {
+                      decision = 'ждет оффер';
+                    }
+                  } else {
+                    type = 'лишний игрок 2';
+                    decision = pair.responder?.accept === true ? 'принял' : pair.responder?.accept === false ? 'отклонил' : 'ждет';
+                  }
+                  return `<tr><td>${proposerName}</td><td>${offer}</td><td>${responderName}</td><td>${decision}</td><td>${type}</td></tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          ` : '<p class="muted">Пока никто не зашел.</p>'}
+        </div>
+      `;
+    }
+
+    function bindHostScreen(sessionCode, hostCode) {
+      q('#refreshHostBtn').onclick = () => render();
+      q('#closeBtn').onclick = async () => { await updateSession(sessionCode, { phase: 'closed' }); render(); };
+      q('#finalizeBtn').onclick = async () => { await updateSession(sessionCode, { phase: 'result' }); go({ screen: 'result', session: sessionCode }); };
+      setTimeout(() => {
+        const route = parseRoute();
+        if (route.screen === 'host' && route.session === sessionCode && route.host === hostCode) render();
+      }, 4000);
+    }
+
+    async function renderResultScreen(sessionCode) {
+      const session = await loadSession(sessionCode);
+      if (!session) return `<div class="page"><div class="card"><h1>Сессия не найдена</h1></div></div>`;
+      const responses = await loadResponses(sessionCode);
+      const result = computeResult(session, responses);
+      return `
+        <div class="page">
+          <div class="card center">
+            <h1>Итог игры</h1>
+            <div class="stat"><span>Среднее предложение</span><b>${result.avgOffer.toFixed(2)}</b></div>
+            <div class="stat"><span>Принято сделок</span><b>${result.acceptedDeals}</b></div>
+            <div class="stat"><span>Отклонено сделок</span><b>${result.rejectedDeals}</b></div>
+            <div class="stat"><span>Автологика для лишнего игрока 1</span><b>${result.oddAutoAccepted}</b></div>
+            <div class="stat"><span>Автологика для лишнего игрока 2</span><b>${result.oddAutoOffered}</b></div>
+            <div class="${result.acceptedDeals > result.rejectedDeals ? 'successBox' : 'dangerBox'} big">${result.acceptedDeals > result.rejectedDeals ? 'Сделка состоялась' : 'Сделка не состоялась'}</div>
+            <div class="nav" style="justify-content:center;"><button id="refreshResultBtn" class="secondary">Обновить</button></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function bindResultScreen(sessionCode) {
+      if (q('#refreshResultBtn')) q('#refreshResultBtn').onclick = () => render();
+      setTimeout(() => {
+        const route = parseRoute();
+        if (route.screen === 'result' && route.session === sessionCode) render();
+      }, 4000);
+    }
+
+    window.addEventListener('popstate', render);
+    render();
+  </script>
+</body>
+</html>    }
     input:focus, select:focus {
       outline: none;
       border-color: #2563eb;
