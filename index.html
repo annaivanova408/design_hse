@@ -425,7 +425,7 @@
         } else {
           content = `<div class="successBox">Ваш ответ сохранен.</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button><a href="?screen=result&session=${encodeURIComponent(sessionCode)}"><button class="secondary">Страница результата</button></a></div>`;
         }
-      } else if (session.phase === 'lobby' {
+      } else if (session.phase === 'lobby') {
         content = `<div class="infoBox">Сбор участников еще идет. Дождитесь, пока преподаватель нажмет <b>«Начать голосование»</b>.</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>`;
       } else if (participant.role === 1) {
         content = `
