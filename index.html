@@ -3,559 +3,587 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Игра ультиматум для группы</title>
+  <title>Ultimatum Game — GitHub Pages + Supabase</title>
   <style>
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: Inter, Arial, sans-serif;
-      background: #f4f7fb;
-      color: #1f2937;
+      background: linear-gradient(180deg, #f7fbff 0%, #edf4ff 100%);
+      color: #172033;
     }
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 24px;
-    }
-    h1, h2, h3 { margin: 0 0 12px; }
-    p { line-height: 1.5; }
-    .grid {
-      display: grid;
-      gap: 20px;
-    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .grid { display: grid; gap: 18px; }
     .grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
-    .grid-3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
     .card {
-      background: white;
-      border-radius: 18px;
-      padding: 20px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+      background: rgba(255,255,255,0.96);
+      border: 1px solid #dbe5f4;
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: 0 18px 50px rgba(28,54,102,0.10);
     }
-    label {
-      display: block;
-      font-size: 14px;
-      margin-bottom: 6px;
-      font-weight: 600;
-    }
-    input, select, button, textarea {
+    h1, h2, h3 { margin: 0 0 10px; }
+    p { line-height: 1.5; }
+    .muted { color: #5f6f8c; }
+    .tiny { color: #5f6f8c; font-size: 12px; }
+    .row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); align-items: end; }
+    label { display: block; font-weight: 700; margin-bottom: 6px; font-size: 14px; }
+    input, button, select {
       width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 12px;
+      border-radius: 14px;
+      border: 1px solid #cfd9ea;
+      padding: 12px 14px;
       font-size: 15px;
     }
-    input:focus, select:focus, textarea:focus {
+    input:focus, select:focus {
       outline: none;
       border-color: #2563eb;
-      box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+      box-shadow: 0 0 0 4px rgba(37,99,235,0.12);
     }
     button {
-      cursor: pointer;
       border: none;
+      cursor: pointer;
       background: #2563eb;
       color: white;
-      font-weight: 700;
+      font-weight: 800;
     }
-    button.secondary {
-      background: #e5e7eb;
-      color: #111827;
-    }
-    button.success { background: #059669; }
-    button.warn { background: #dc2626; }
-    .row {
-      display: grid;
-      gap: 12px;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      align-items: end;
-    }
+    button.secondary { background: #e7eefb; color: #172033; }
+    button.green { background: #059669; }
+    button.red { background: #dc2626; }
+    button.ghost { background: transparent; border: 1px solid #cfd9ea; color: #172033; }
     .pill {
       display: inline-block;
-      padding: 6px 10px;
+      padding: 7px 12px;
       border-radius: 999px;
-      background: #eef2ff;
-      color: #3730a3;
+      background: #edf4ff;
+      color: #21417d;
+      font-weight: 800;
+      margin-right: 8px;
+      margin-bottom: 8px;
       font-size: 13px;
-      margin: 4px 6px 0 0;
-      font-weight: 600;
-    }
-    .student {
-      border: 1px solid #e5e7eb;
-      border-radius: 16px;
-      padding: 14px;
-      background: #fafafa;
     }
     .stat {
       display: flex;
       justify-content: space-between;
-      gap: 12px;
-      padding: 12px 14px;
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
+      gap: 14px;
+      border: 1px solid #dde6f6;
+      background: #fbfdff;
+      border-radius: 16px;
+      padding: 14px 16px;
       margin-bottom: 10px;
     }
-    .big {
-      text-align: center;
-      font-size: 22px;
-      font-weight: 800;
-      padding: 16px;
-      border-radius: 16px;
-      border: 2px solid #d1d5db;
+    .successBox, .dangerBox, .infoBox {
+      border-radius: 18px;
+      padding: 16px 18px;
       margin-top: 12px;
+      font-weight: 700;
     }
-    .ok { background: #ecfdf5; color: #065f46; border-color: #6ee7b7; }
-    .no { background: #fef2f2; color: #991b1b; border-color: #fca5a5; }
-    .muted { color: #6b7280; font-size: 14px; }
-    .hidden { display: none; }
-    .tabs {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 14px;
-      flex-wrap: wrap;
+    .successBox { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+    .dangerBox { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+    .infoBox { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+    .code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: #0f172a;
+      color: #dbeafe;
+      border-radius: 14px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 13px;
     }
-    .tab {
-      background: #e5e7eb;
-      color: #111827;
+    .choice {
+      border: 1px solid #dde6f6;
+      background: #fbfdff;
+      border-radius: 18px;
+      padding: 16px;
     }
-    .tab.active {
-      background: #2563eb;
-      color: white;
+    .nav { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .center { text-align: center; }
+    .big { font-size: 28px; font-weight: 900; line-height: 1.15; }
+    .hidden { display: none !important; }
+    .table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .table th, .table td { padding: 10px 8px; border-bottom: 1px solid #e5edf8; text-align: left; font-size: 14px; }
+    .page { max-width: 760px; margin: 0 auto; }
+    textarea {
+      width: 100%; min-height: 220px; border-radius: 16px; border: 1px solid #cfd9ea;
+      padding: 12px 14px; font-size: 14px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    @media (max-width: 820px) { .wrap { padding: 14px; } .card { padding: 18px; } }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="card" style="margin-bottom:20px;">
-      <h1>Игра ультиматум для группы</h1>
-      <p>Один файл без сервера. Подходит для быстрого запуска на занятии: случайно делит студентов на роли, собирает ответы и считает, состоялась ли сделка <b>по среднему</b>.</p>
-      <p class="muted">Есть два режима: агрегированный по среднему и парный. Можно открыть локально в браузере как обычный <span class="mono">index.html</span>.</p>
-    </div>
-
-    <div class="card" style="margin-bottom:20px;">
-      <h2>Настройки</h2>
-      <div class="row">
-        <div>
-          <label for="studentCount">Число студентов</label>
-          <input id="studentCount" type="number" min="2" value="24" />
-        </div>
-        <div>
-          <label for="totalMoney">Сумма в игре</label>
-          <input id="totalMoney" type="number" min="1" value="20" />
-        </div>
-        <div>
-          <label for="mode">Режим подсчета</label>
-          <select id="mode">
-            <option value="average">По среднему</option>
-            <option value="pair">Парный</option>
-          </select>
-        </div>
-        <div>
-          <button id="generateBtn">Сгенерировать роли</button>
-        </div>
-        <div>
-          <button id="newRoundBtn" class="secondary">Новый раунд</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid grid-2">
-      <div class="card">
-        <h2>Роли</h2>
-        <p class="muted">Покажите студентам их номер и роль.</p>
-        <div style="margin-bottom:14px;">
-          <h3>Игрок 1</h3>
-          <div id="role1List"></div>
-        </div>
-        <div>
-          <h3>Игрок 2</h3>
-          <div id="role2List"></div>
-        </div>
-        <p id="oddWarning" class="muted hidden" style="margin-top:12px;">Нечетное число студентов: одна группа будет на одного человека больше.</p>
-      </div>
-
-      <div class="card">
-        <h2>Краткая инструкция для аудитории</h2>
-        <div id="modeHint"></div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:20px;">
-      <h2>Ввод ответов</h2>
-      <div class="tabs">
-        <button class="tab active" data-tab="p1">Игрок 1</button>
-        <button class="tab" data-tab="p2">Игрок 2</button>
-      </div>
-
-      <div id="tab-p1">
-        <p class="muted">Игрок 1 вводит, сколько готов отдать игроку 2.</p>
-        <div id="player1Inputs" class="grid grid-3"></div>
-      </div>
-
-      <div id="tab-p2" class="hidden">
-        <div id="player2AverageBox">
-          <p class="muted">Игрок 2 вводит минимальную сумму, которую готов принять.</p>
-        </div>
-        <div id="player2PairBox" class="hidden">
-          <p class="muted">Игрок 2 видит предложение своей пары и выбирает: принять или отклонить.</p>
-        </div>
-        <div id="player2Inputs" class="grid grid-3"></div>
-      </div>
-    </div>
-
-    <div class="grid grid-2" style="margin-top:20px;">
-      <div class="card">
-        <h2>Итоги</h2>
-        <div id="resultsBox"></div>
-      </div>
-
-      <div class="card">
-        <h2>Действия</h2>
-        <div class="row">
-          <div><button id="calcBtn" class="success">Посчитать результат</button></div>
-          <div><button id="csvBtn" class="secondary">Скачать CSV</button></div>
-          <div><button id="demoBtn" class="secondary">Заполнить демо-данными</button></div>
-          <div><button id="clearBtn" class="warn">Очистить ответы</button></div>
-        </div>
-        <p class="muted" style="margin-top:12px;">CSV пригодится для разбора после пары и графиков в Excel / Google Sheets.</p>
-      </div>
-    </div>
-  </div>
+  <div class="wrap" id="app"></div>
 
   <script>
-    const state = {
-      students: [],
-      role1: [],
-      role2: [],
-      mode: 'average',
-      totalMoney: 20,
-      offers: {},
-      thresholds: {},
-      decisions: {},
-      pairs: []
-    };
+    const SUPABASE_URL = 'PASTE_YOUR_SUPABASE_URL_HERE';
+    const SUPABASE_ANON_KEY = 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
+    const SESSION_STORAGE_KEY = 'ultimatum-gh-pages-player';
 
-    function shuffle(arr) {
-      const a = [...arr];
-      for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]];
-      }
-      return a;
+    function q(sel) { return document.querySelector(sel); }
+    function randomCode(len = 6) { return Math.random().toString(36).slice(2, 2 + len).toUpperCase(); }
+    function randomId() { return 'p_' + Math.random().toString(36).slice(2, 10); }
+    function randomRole() { return Math.random() < 0.5 ? 1 : 2; }
+    function average(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0; }
+    function median(arr) { if (!arr.length) return 0; const s = [...arr].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+    function escapeHtml(s) { return String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;'); }
+
+    function hasConfig() {
+      return SUPABASE_URL.startsWith('http') && !SUPABASE_URL.includes('PASTE_YOUR') && !SUPABASE_ANON_KEY.includes('PASTE_YOUR');
     }
 
-    function avg(nums) {
-      if (!nums.length) return 0;
-      return nums.reduce((s, x) => s + x, 0) / nums.length;
+    function api(path, options = {}) {
+      return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+        ...options,
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: options.prefer || 'return=representation',
+          ...(options.headers || {})
+        }
+      });
     }
 
-    function median(nums) {
-      if (!nums.length) return 0;
-      const a = [...nums].sort((x, y) => x - y);
-      const m = Math.floor(a.length / 2);
-      return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+    function parseRoute() {
+      const url = new URL(window.location.href);
+      return {
+        screen: url.searchParams.get('screen') || 'home',
+        session: url.searchParams.get('session') || '',
+        host: url.searchParams.get('host') || ''
+      };
     }
 
-    function el(id) {
-      return document.getElementById(id);
+    function go(params) {
+      const url = new URL(window.location.href);
+      url.search = '';
+      Object.entries(params).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); });
+      window.history.pushState({}, '', url.toString());
+      render();
     }
 
-    function currentSettings() {
-      state.totalMoney = Math.max(1, Number(el('totalMoney').value) || 20);
-      state.mode = el('mode').value;
+    function getSavedPlayer(sessionCode) {
+      try {
+        const all = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || '{}');
+        return all[sessionCode] || null;
+      } catch { return null; }
     }
 
-    function generateRoles() {
-      currentSettings();
-      const count = Math.max(2, Number(el('studentCount').value) || 2);
-      state.students = Array.from({ length: count }, (_, i) => i + 1);
-      const shuffled = shuffle(state.students);
-      const split = Math.floor(count / 2);
-      state.role1 = shuffled.slice(0, split);
-      state.role2 = shuffled.slice(split);
-      state.offers = {};
-      state.thresholds = {};
-      state.decisions = {};
-      state.pairs = [];
-
-      const pairCount = Math.min(state.role1.length, state.role2.length);
-      for (let i = 0; i < pairCount; i++) {
-        state.pairs.push({ p1: state.role1[i], p2: state.role2[i] });
-      }
-
-      renderRoles();
-      renderInstructions();
-      renderInputs();
-      renderResults();
+    function savePlayer(sessionCode, value) {
+      const all = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || '{}');
+      all[sessionCode] = value;
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(all));
     }
 
-    function renderRoles() {
-      el('role1List').innerHTML = state.role1.map(id => `<span class="pill">#${id}</span>`).join('') || '<span class="muted">Пока пусто</span>';
-      el('role2List').innerHTML = state.role2.map(id => `<span class="pill">#${id}</span>`).join('') || '<span class="muted">Пока пусто</span>';
-      el('oddWarning').classList.toggle('hidden', state.students.length % 2 === 0);
+    async function createSession(totalMoney, expectedParticipants) {
+      const session_code = randomCode(6);
+      const host_code = randomCode(10);
+      const body = [{ session_code, host_code, total_money: totalMoney, expected_participants: expectedParticipants, phase: 'join' }];
+      const res = await api('game_sessions', { method: 'POST', body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return data[0];
     }
 
-    function renderInstructions() {
-      const averageText = `
-        <p><b>Режим по среднему.</b> Игрок 1 пишет, сколько готов отдать. Игрок 2 пишет минимальную сумму, которую готов принять.</p>
-        <p>После этого считаем <b>среднее предложение</b> и <b>средний минимальный порог принятия</b>. Если среднее предложение не ниже среднего порога, считаем, что сделка состоялась.</p>
-      `;
-      const pairText = `
-        <p><b>Парный режим.</b> Каждый игрок 1 случайно сопоставлен с игроком 2. Игрок 1 делает предложение своей паре, игрок 2 видит конкретное предложение и принимает или отклоняет его.</p>
-        <p>В конце считаем количество состоявшихся сделок, среднее предложение и долю принятых офферов.</p>
-      `;
-      el('modeHint').innerHTML = state.mode === 'average' ? averageText : pairText;
-      el('player2AverageBox').classList.toggle('hidden', state.mode !== 'average');
-      el('player2PairBox').classList.toggle('hidden', state.mode !== 'pair');
+    async function loadSession(sessionCode) {
+      const res = await api(`game_sessions?session_code=eq.${encodeURIComponent(sessionCode)}&select=*` , { method: 'GET', headers: { Prefer: '' } });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return data[0] || null;
     }
 
-    function renderInputs() {
-      const p1Box = el('player1Inputs');
-      const p2Box = el('player2Inputs');
-      p1Box.innerHTML = '';
-      p2Box.innerHTML = '';
+    async function updateSession(sessionCode, patch) {
+      const res = await api(`game_sessions?session_code=eq.${encodeURIComponent(sessionCode)}`, { method: 'PATCH', body: JSON.stringify(patch) });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return data[0] || null;
+    }
 
-      state.role1.forEach(id => {
-        const pair = state.pairs.find(x => x.p1 === id);
-        const pairInfo = pair ? `Пара: игрок 2 — #${pair.p2}` : 'Без пары';
-        const value = state.offers[id] ?? '';
-        const keep = value === '' ? '—' : state.totalMoney - Number(value);
-        const div = document.createElement('div');
-        div.className = 'student';
-        div.innerHTML = `
-          <div><b>Студент #${id}</b></div>
-          <div class="muted" style="margin:6px 0 10px;">${pairInfo}</div>
-          <label>Сколько отдать игроку 2</label>
-          <input type="number" min="0" max="${state.totalMoney}" value="${value}" data-offer="${id}" />
-          <div class="muted" style="margin-top:8px;">Оставляет себе: <b>${keep}</b></div>
+    async function joinSession(sessionCode, nickname) {
+      const participant_code = randomId();
+      const role = randomRole();
+      const body = [{ session_code: sessionCode, participant_code, nickname, role, done: false }];
+      const res = await api('game_responses', { method: 'POST', body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return data[0];
+    }
+
+    async function loadParticipant(sessionCode, participantCode) {
+      const res = await api(`game_responses?session_code=eq.${encodeURIComponent(sessionCode)}&participant_code=eq.${encodeURIComponent(participantCode)}&select=*`, { method: 'GET', headers: { Prefer: '' } });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return data[0] || null;
+    }
+
+    async function updateParticipant(sessionCode, participantCode, patch) {
+      const res = await api(`game_responses?session_code=eq.${encodeURIComponent(sessionCode)}&participant_code=eq.${encodeURIComponent(participantCode)}`, { method: 'PATCH', body: JSON.stringify(patch) });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      return data[0] || null;
+    }
+
+    async function loadResponses(sessionCode) {
+      const res = await api(`game_responses?session_code=eq.${encodeURIComponent(sessionCode)}&select=*&order=created_at.asc`, { method: 'GET', headers: { Prefer: '' } });
+      if (!res.ok) throw new Error(await res.text());
+      return await res.json();
+    }
+
+    function computeResult(session, responses) {
+      const offers = responses.filter(x => x.role === 1 && Number.isFinite(x.offer)).map(x => x.offer);
+      const avgOffer = average(offers);
+      const medOffer = median(offers);
+      const yesCount = responses.filter(x => x.role === 2 && x.accept === true).length;
+      const noCount = responses.filter(x => x.role === 2 && x.accept === false).length;
+      const acceptanceRate = yesCount + noCount ? yesCount / (yesCount + noCount) : 0;
+      return {
+        avgOffer,
+        medOffer,
+        yesCount,
+        noCount,
+        acceptanceRate,
+        deal: yesCount > noCount,
+        doneCount: responses.filter(x => x.done).length,
+        totalCount: responses.length,
+        role1Count: responses.filter(x => x.role === 1).length,
+        role2Count: responses.filter(x => x.role === 2).length,
+        totalMoney: session.total_money
+      };
+    }
+
+    function configHelp() {
+      return `-- SQL: run in Supabase SQL Editor --\n\ncreate table if not exists public.game_sessions (\n  id bigint generated by default as identity primary key,\n  session_code text unique not null,\n  host_code text unique not null,\n  total_money integer not null default 20,\n  expected_participants integer not null default 24,\n  phase text not null default 'join',\n  created_at timestamptz not null default now()\n);\n\ncreate table if not exists public.game_responses (\n  id bigint generated by default as identity primary key,\n  session_code text not null references public.game_sessions(session_code) on delete cascade,\n  participant_code text not null,\n  nickname text not null default 'Студент',\n  role integer not null check (role in (1,2)),\n  offer integer,\n  accept boolean,\n  done boolean not null default false,\n  created_at timestamptz not null default now(),\n  unique(session_code, participant_code)\n);\n\nalter table public.game_sessions enable row level security;\nalter table public.game_responses enable row level security;\n\ndrop policy if exists \"public read sessions\" on public.game_sessions;\ncreate policy \"public read sessions\" on public.game_sessions for select using (true);\n\ndrop policy if exists \"public insert sessions\" on public.game_sessions;\ncreate policy \"public insert sessions\" on public.game_sessions for insert with check (true);\n\ndrop policy if exists \"public update sessions\" on public.game_sessions;\ncreate policy \"public update sessions\" on public.game_sessions for update using (true) with check (true);\n\ndrop policy if exists \"public read responses\" on public.game_responses;\ncreate policy \"public read responses\" on public.game_responses for select using (true);\n\ndrop policy if exists \"public insert responses\" on public.game_responses;\ncreate policy \"public insert responses\" on public.game_responses for insert with check (true);\n\ndrop policy if exists \"public update responses\" on public.game_responses;\ncreate policy \"public update responses\" on public.game_responses for update using (true) with check (true);\n\n-- end SQL --`;
+    }
+
+    async function render() {
+      const { screen, session, host } = parseRoute();
+      const app = document.getElementById('app');
+
+      if (!hasConfig()) {
+        app.innerHTML = `
+          <div class="card">
+            <h1>Нужно вставить настройки Supabase</h1>
+            <p class="muted">Эта версия рассчитана на GitHub Pages: сайт статический, а данные хранятся в Supabase. GitHub Pages публикует обычные HTML/CSS/JS-файлы, а Supabase дает браузерный REST API, который можно вызывать напрямую. ([docs.github.com](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages?utm_source=chatgpt.com))</p>
+            <div class="infoBox">1) Создайте проект в Supabase. 2) Выполните SQL ниже. 3) Вставьте URL проекта и anon key в верх файла. 4) Залейте этот файл как <b>index.html</b> в GitHub Pages.</div>
+            <h3 style="margin-top:14px;">SQL для базы</h3>
+            <textarea readonly>${configHelp()}</textarea>
+            <div class="nav">
+              <button onclick="navigator.clipboard.writeText(document.querySelector('textarea').value)">Скопировать SQL</button>
+            </div>
+            <p class="tiny" style="margin-top:12px;">GitHub Pages публикует статические файлы из репозитория, а обновления в выбранной ветке или папке могут автоматически деплоиться на сайт. ([docs.github.com](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site?utm_source=chatgpt.com))</p>
+          </div>
         `;
-        p1Box.appendChild(div);
-      });
-
-      if (state.mode === 'average') {
-        state.role2.forEach(id => {
-          const value = state.thresholds[id] ?? '';
-          const div = document.createElement('div');
-          div.className = 'student';
-          div.innerHTML = `
-            <div><b>Студент #${id}</b></div>
-            <label style="margin-top:10px;">Минимум, который готов принять</label>
-            <input type="number" min="0" max="${state.totalMoney}" value="${value}" data-threshold="${id}" />
-          `;
-          p2Box.appendChild(div);
-        });
-      } else {
-        state.role2.forEach(id => {
-          const pair = state.pairs.find(x => x.p2 === id);
-          const offer = pair ? state.offers[pair.p1] : null;
-          const decision = state.decisions[id] ?? '';
-          const div = document.createElement('div');
-          div.className = 'student';
-          div.innerHTML = `
-            <div><b>Студент #${id}</b></div>
-            <div class="muted" style="margin:6px 0 10px;">Пара: игрок 1 — ${pair ? '#' + pair.p1 : 'нет пары'}</div>
-            <div style="margin-bottom:10px;">Предложение: <b>${offer ?? '—'}</b> из <b>${state.totalMoney}</b></div>
-            <label>Решение</label>
-            <select data-decision="${id}">
-              <option value="">Выберите</option>
-              <option value="accept" ${decision === 'accept' ? 'selected' : ''}>Принять</option>
-              <option value="reject" ${decision === 'reject' ? 'selected' : ''}>Отклонить</option>
-            </select>
-          `;
-          p2Box.appendChild(div);
-        });
-      }
-
-      bindInputs();
-    }
-
-    function bindInputs() {
-      document.querySelectorAll('[data-offer]').forEach(inp => {
-        inp.addEventListener('input', e => {
-          const id = Number(e.target.dataset.offer);
-          let value = e.target.value === '' ? '' : Number(e.target.value);
-          if (value !== '') {
-            value = Math.max(0, Math.min(state.totalMoney, value));
-          }
-          state.offers[id] = value;
-          if (state.mode === 'pair') renderInputs();
-          else renderResults();
-        });
-      });
-
-      document.querySelectorAll('[data-threshold]').forEach(inp => {
-        inp.addEventListener('input', e => {
-          const id = Number(e.target.dataset.threshold);
-          let value = e.target.value === '' ? '' : Number(e.target.value);
-          if (value !== '') {
-            value = Math.max(0, Math.min(state.totalMoney, value));
-          }
-          state.thresholds[id] = value;
-          renderResults();
-        });
-      });
-
-      document.querySelectorAll('[data-decision]').forEach(sel => {
-        sel.addEventListener('change', e => {
-          const id = Number(e.target.dataset.decision);
-          state.decisions[id] = e.target.value;
-          renderResults();
-        });
-      });
-    }
-
-    function renderResults() {
-      const box = el('resultsBox');
-      if (!state.students.length) {
-        box.innerHTML = '<p class="muted">Сначала сгенерируйте роли.</p>';
         return;
       }
 
-      if (state.mode === 'average') {
-        const offers = Object.values(state.offers).filter(v => v !== '' && !Number.isNaN(v));
-        const thresholds = Object.values(state.thresholds).filter(v => v !== '' && !Number.isNaN(v));
-        const avgOffer = avg(offers);
-        const medOffer = median(offers);
-        const avgThreshold = avg(thresholds);
-        const medThreshold = median(thresholds);
-        const deal = offers.length && thresholds.length && avgOffer >= avgThreshold;
-
-        box.innerHTML = `
-          <div class="stat"><span>Среднее предложение игроку 2</span><b>${avgOffer.toFixed(2)}</b></div>
-          <div class="stat"><span>Средний минимальный приемлемый уровень</span><b>${avgThreshold.toFixed(2)}</b></div>
-          <div class="stat"><span>Медиана предложения</span><b>${medOffer.toFixed(2)}</b></div>
-          <div class="stat"><span>Медиана минимального порога</span><b>${medThreshold.toFixed(2)}</b></div>
-          <div class="stat"><span>Ответов игроков 1</span><b>${offers.length}</b></div>
-          <div class="stat"><span>Ответов игроков 2</span><b>${thresholds.length}</b></div>
-          <div class="big ${deal ? 'ok' : 'no'}">${deal ? 'Сделка по среднему состоялась' : 'Сделка по среднему не состоялась'}</div>
-        `;
-      } else {
-        const completedPairs = state.pairs.map(pair => {
-          const offer = state.offers[pair.p1];
-          const decision = state.decisions[pair.p2];
-          const accepted = decision === 'accept';
-          const ready = offer !== undefined && offer !== '' && !!decision;
-          return { ...pair, offer, decision, accepted, ready };
-        });
-
-        const readyPairs = completedPairs.filter(x => x.ready);
-        const acceptedCount = readyPairs.filter(x => x.accepted).length;
-        const rejectedCount = readyPairs.filter(x => x.decision === 'reject').length;
-        const acceptanceRate = readyPairs.length ? (acceptedCount / readyPairs.length) * 100 : 0;
-        const avgOffer = avg(completedPairs.map(x => Number(x.offer)).filter(v => !Number.isNaN(v)));
-
-        const rows = completedPairs.map(x => `
-          <div class="stat">
-            <span>Пара #${x.p1} → #${x.p2}</span>
-            <span>Оффер: <b>${x.offer ?? '—'}</b> | Решение: <b>${x.decision === 'accept' ? 'принять' : x.decision === 'reject' ? 'отклонить' : '—'}</b></span>
-          </div>
-        `).join('');
-
-        box.innerHTML = `
-          <div class="stat"><span>Всего пар</span><b>${state.pairs.length}</b></div>
-          <div class="stat"><span>Заполненных пар</span><b>${readyPairs.length}</b></div>
-          <div class="stat"><span>Среднее предложение игрока 1</span><b>${avgOffer.toFixed(2)}</b></div>
-          <div class="stat"><span>Принято</span><b>${acceptedCount}</b></div>
-          <div class="stat"><span>Отклонено</span><b>${rejectedCount}</b></div>
-          <div class="stat"><span>Доля принятия</span><b>${acceptanceRate.toFixed(1)}%</b></div>
-          <div class="big ${acceptedCount > 0 ? 'ok' : 'no'}">Состоявшихся сделок: ${acceptedCount}</div>
-          <div style="margin-top:12px;">
-            <h3 style="margin-bottom:10px;">Пары</h3>
-            ${rows || '<p class="muted">Пар пока нет.</p>'}
+      try {
+        if (screen === 'join') {
+          app.innerHTML = await renderJoinScreen(session);
+          bindJoinScreen(session);
+          return;
+        }
+        if (screen === 'play') {
+          app.innerHTML = await renderPlayScreen(session);
+          bindPlayScreen(session);
+          return;
+        }
+        if (screen === 'host') {
+          app.innerHTML = await renderHostScreen(session, host);
+          bindHostScreen(session, host);
+          return;
+        }
+        if (screen === 'result') {
+          app.innerHTML = await renderResultScreen(session);
+          bindResultScreen(session);
+          return;
+        }
+        app.innerHTML = renderHomeScreen();
+        bindHomeScreen();
+      } catch (err) {
+        app.innerHTML = `
+          <div class="card">
+            <h1>Ошибка</h1>
+            <div class="dangerBox">${escapeHtml(err.message || String(err))}</div>
+            <div class="nav"><button class="secondary" onclick="location.reload()">Обновить</button></div>
           </div>
         `;
       }
     }
 
-    function clearAnswers() {
-      state.offers = {};
-      state.thresholds = {};
-      state.decisions = {};
-      renderInputs();
-      renderResults();
+    function renderHomeScreen() {
+      return `
+        <div class="grid grid-2">
+          <div class="card">
+            <h1>Ultimatum Game</h1>
+            <p class="muted">Рабочая версия для GitHub Pages: студенты переходят по одной ссылке, получают случайную роль 1 или 2, отправляют ответ, а преподаватель видит общий прогресс и финальный итог.</p>
+            <div class="infoBox">Для запуска нажмите «Создать новую сессию». После этого получите две ссылки: для студентов и для преподавателя.</div>
+          </div>
+          <div class="card">
+            <h2>Новая сессия</h2>
+            <div class="row">
+              <div>
+                <label>Сумма в игре</label>
+                <input id="newTotalMoney" type="number" min="1" value="20" />
+              </div>
+              <div>
+                <label>Ожидается участников</label>
+                <input id="newExpectedParticipants" type="number" min="1" value="24" />
+              </div>
+            </div>
+            <div class="nav">
+              <button id="createSessionBtn">Создать новую сессию</button>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
-    function demoFill() {
-      state.role1.forEach(id => {
-        state.offers[id] = Math.floor(Math.random() * (state.totalMoney + 1));
-      });
-      if (state.mode === 'average') {
-        state.role2.forEach(id => {
-          state.thresholds[id] = Math.floor(Math.random() * (state.totalMoney + 1));
-        });
-      } else {
-        state.role2.forEach(id => {
-          state.decisions[id] = Math.random() > 0.35 ? 'accept' : 'reject';
-        });
+    function bindHomeScreen() {
+      q('#createSessionBtn').onclick = async () => {
+        const totalMoney = Math.max(1, Number(q('#newTotalMoney').value) || 20);
+        const expected = Math.max(1, Number(q('#newExpectedParticipants').value) || 24);
+        q('#createSessionBtn').disabled = true;
+        q('#createSessionBtn').textContent = 'Создаю...';
+        const session = await createSession(totalMoney, expected);
+        go({ screen: 'host', session: session.session_code, host: session.host_code });
+      };
+    }
+
+    async function renderJoinScreen(sessionCode) {
+      const session = await loadSession(sessionCode);
+      if (!session) return `<div class="card"><h1>Сессия не найдена</h1></div>`;
+      if (session.phase !== 'join') {
+        return `
+          <div class="page"><div class="card center"><h1>Вход закрыт</h1><p class="muted">Преподаватель закрыл вход в эту сессию.</p><div class="nav" style="justify-content:center;"><a href="?screen=result&session=${encodeURIComponent(sessionCode)}"><button class="secondary">Страница результата</button></a></div></div></div>
+        `;
       }
-      renderInputs();
-      renderResults();
+      return `
+        <div class="page">
+          <div class="card center">
+            <h1>Вход в игру</h1>
+            <p class="muted">Сессия: <b>${escapeHtml(sessionCode)}</b></p>
+            <p class="muted">Вы получите случайную роль: <b>игрок 1</b> или <b>игрок 2</b>.</p>
+            <div class="row" style="text-align:left; margin-top:16px;">
+              <div>
+                <label>Ваше имя или номер</label>
+                <input id="joinNickname" placeholder="Например, 12 или Алина" />
+              </div>
+              <div>
+                <button id="joinSessionBtn">Зайти</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
-    function exportCSV() {
-      const rows = [];
-      rows.push(['student_id', 'role', 'offer_to_player2', 'keep_for_player1', 'min_accept', 'decision']);
+    function bindJoinScreen(sessionCode) {
+      q('#joinSessionBtn').onclick = async () => {
+        const nickname = (q('#joinNickname').value || '').trim() || 'Студент';
+        const participant = await joinSession(sessionCode, nickname);
+        savePlayer(sessionCode, participant.participant_code);
+        go({ screen: 'play', session: sessionCode });
+      };
+    }
 
-      state.role1.forEach(id => {
-        const offer = state.offers[id] ?? '';
-        const keep = offer === '' ? '' : state.totalMoney - Number(offer);
-        rows.push([id, 1, offer, keep, '', '']);
-      });
-
-      state.role2.forEach(id => {
-        const threshold = state.thresholds[id] ?? '';
-        const decision = state.decisions[id] ?? '';
-        rows.push([id, 2, '', '', threshold, decision]);
-      });
-
-      rows.push([]);
-      rows.push(['mode', state.mode]);
-      rows.push(['total_money', state.totalMoney]);
-      if (state.mode === 'pair') {
-        rows.push([]);
-        rows.push(['pair_player1', 'pair_player2', 'offer', 'decision']);
-        state.pairs.forEach(pair => {
-          rows.push([pair.p1, pair.p2, state.offers[pair.p1] ?? '', state.decisions[pair.p2] ?? '']);
-        });
+    async function renderPlayScreen(sessionCode) {
+      const session = await loadSession(sessionCode);
+      if (!session) return `<div class="card"><h1>Сессия не найдена</h1></div>`;
+      const participantCode = getSavedPlayer(sessionCode);
+      if (!participantCode) {
+        return `
+          <div class="page"><div class="card center"><h1>Участник не найден</h1><p class="muted">Сначала зайдите через страницу входа.</p><div class="nav" style="justify-content:center;"><a href="?screen=join&session=${encodeURIComponent(sessionCode)}"><button>Перейти ко входу</button></a></div></div></div>
+        `;
       }
+      const participant = await loadParticipant(sessionCode, participantCode);
+      if (!participant) return `<div class="card"><h1>Участник не найден</h1></div>`;
+      const responses = await loadResponses(sessionCode);
+      const result = computeResult(session, responses);
+      const keep = Number.isFinite(participant.offer) ? session.total_money - participant.offer : '—';
 
-      const csv = rows.map(r => r.join(',')).join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'ultimatum_game_results.csv';
-      a.click();
-      URL.revokeObjectURL(url);
+      return `
+        <div class="page">
+          <div class="card">
+            <div class="pill">${escapeHtml(participant.nickname)}</div>
+            <h1>Ваша роль: игрок ${participant.role}</h1>
+            <p class="muted">Общая сумма: <b>${session.total_money}</b></p>
+            ${participant.done ? `
+              <div class="successBox">Ваш ответ сохранен.</div>
+              <div class="nav"><a href="?screen=result&session=${encodeURIComponent(sessionCode)}"><button class="secondary">Страница результата</button></a></div>
+            ` : participant.role === 1 ? `
+              <div class="choice">
+                <h3>Сделайте предложение</h3>
+                <p class="muted">Сколько из <b>${session.total_money}</b> вы готовы отдать игроку 2?</p>
+                <label>Сумма для игрока 2</label>
+                <input id="offerInput" type="number" min="0" max="${session.total_money}" value="${participant.offer ?? ''}" />
+                <p class="tiny" id="keepHint">Себе останется: <b>${keep}</b></p>
+                <div class="nav"><button id="submitOfferBtn">Отправить</button></div>
+              </div>
+            ` : `
+              <div class="choice">
+                <h3>Примите решение</h3>
+                <p>Среднее предложение от игроков 1 сейчас: <b>${result.avgOffer.toFixed(2)}</b> из <b>${session.total_money}</b>.</p>
+                <p class="muted">Вы согласны принять такое среднее предложение?</p>
+                <div class="row">
+                  <div><button id="acceptBtn" class="green">Принять</button></div>
+                  <div><button id="rejectBtn" class="red">Отклонить</button></div>
+                </div>
+              </div>
+            `}
+          </div>
+        </div>
+      `;
     }
 
-    document.querySelectorAll('.tab').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-        btn.classList.add('active');
-        el('tab-p1').classList.toggle('hidden', btn.dataset.tab !== 'p1');
-        el('tab-p2').classList.toggle('hidden', btn.dataset.tab !== 'p2');
-      });
-    });
+    function bindPlayScreen(sessionCode) {
+      const participantCode = getSavedPlayer(sessionCode);
+      if (!participantCode) return;
 
-    el('generateBtn').addEventListener('click', generateRoles);
-    el('newRoundBtn').addEventListener('click', generateRoles);
-    el('calcBtn').addEventListener('click', () => { currentSettings(); renderInstructions(); renderResults(); });
-    el('csvBtn').addEventListener('click', exportCSV);
-    el('demoBtn').addEventListener('click', demoFill);
-    el('clearBtn').addEventListener('click', clearAnswers);
-    el('mode').addEventListener('change', () => {
-      currentSettings();
-      renderInstructions();
-      renderInputs();
-      renderResults();
-    });
-    el('totalMoney').addEventListener('change', () => {
-      currentSettings();
-      renderInputs();
-      renderResults();
-    });
+      const offerInput = q('#offerInput');
+      if (offerInput && q('#keepHint')) {
+        offerInput.oninput = () => {
+          const sessionTotal = Number(offerInput.max || 20);
+          const value = Math.max(0, Math.min(sessionTotal, Number(offerInput.value) || 0));
+          q('#keepHint').innerHTML = `Себе останется: <b>${sessionTotal - value}</b>`;
+        };
+      }
+      if (q('#submitOfferBtn')) {
+        q('#submitOfferBtn').onclick = async () => {
+          const session = await loadSession(sessionCode);
+          const value = Math.max(0, Math.min(session.total_money, Number(q('#offerInput').value)));
+          if (!Number.isFinite(value)) return;
+          q('#submitOfferBtn').disabled = true;
+          await updateParticipant(sessionCode, participantCode, { offer: value, done: true });
+          render();
+        };
+      }
+      if (q('#acceptBtn')) {
+        q('#acceptBtn').onclick = async () => {
+          q('#acceptBtn').disabled = true;
+          await updateParticipant(sessionCode, participantCode, { accept: true, done: true });
+          render();
+        };
+      }
+      if (q('#rejectBtn')) {
+        q('#rejectBtn').onclick = async () => {
+          q('#rejectBtn').disabled = true;
+          await updateParticipant(sessionCode, participantCode, { accept: false, done: true });
+          render();
+        };
+      }
+    }
 
-    generateRoles();
+    async function renderHostScreen(sessionCode, hostCode) {
+      const session = await loadSession(sessionCode);
+      if (!session) return `<div class="card"><h1>Сессия не найдена</h1></div>`;
+      if (hostCode !== session.host_code) {
+        return `<div class="card"><h1>Неверная ссылка преподавателя</h1><p class="muted">Откройте правильную host-ссылку.</p></div>`;
+      }
+      const responses = await loadResponses(sessionCode);
+      const result = computeResult(session, responses);
+      const joinUrl = `${location.origin}${location.pathname}?screen=join&session=${encodeURIComponent(sessionCode)}`;
+      const resultUrl = `${location.origin}${location.pathname}?screen=result&session=${encodeURIComponent(sessionCode)}`;
+      const hostUrl = `${location.origin}${location.pathname}?screen=host&session=${encodeURIComponent(sessionCode)}&host=${encodeURIComponent(hostCode)}`;
+      return `
+        <div class="grid grid-2">
+          <div class="card">
+            <h1>Панель преподавателя</h1>
+            <div class="stat"><span>Код сессии</span><b>${escapeHtml(sessionCode)}</b></div>
+            <div class="stat"><span>Фаза</span><b>${escapeHtml(session.phase)}</b></div>
+            <div class="stat"><span>Сумма в игре</span><b>${session.total_money}</b></div>
+            <div class="stat"><span>Ожидается участников</span><b>${session.expected_participants}</b></div>
+            <div class="nav">
+              <button id="refreshHostBtn" class="secondary">Обновить</button>
+              <button id="openJoinBtn" class="green">Открыть вход</button>
+              <button id="closeJoinBtn" class="secondary">Закрыть вход</button>
+              <button id="finalizeBtn">Подвести итог</button>
+            </div>
+            <div class="infoBox">Раздайте студентам <b>join-ссылку</b>. Себе сохраните <b>host-ссылку</b>. Покажите аудитории <b>result-ссылку</b> после завершения.</div>
+            <p class="tiny">Join</p>
+            <div class="code">${escapeHtml(joinUrl)}</div>
+            <p class="tiny" style="margin-top:10px;">Result</p>
+            <div class="code">${escapeHtml(resultUrl)}</div>
+            <p class="tiny" style="margin-top:10px;">Host</p>
+            <div class="code">${escapeHtml(hostUrl)}</div>
+          </div>
+          <div class="card">
+            <h2>Живая статистика</h2>
+            <div class="stat"><span>Присоединилось</span><b>${responses.length}</b></div>
+            <div class="stat"><span>Завершили</span><b>${result.doneCount}</b></div>
+            <div class="stat"><span>Игроки 1</span><b>${result.role1Count}</b></div>
+            <div class="stat"><span>Игроки 2</span><b>${result.role2Count}</b></div>
+            <div class="stat"><span>Среднее предложение</span><b>${result.avgOffer.toFixed(2)}</b></div>
+            <div class="stat"><span>Приняли</span><b>${result.yesCount}</b></div>
+            <div class="stat"><span>Отклонили</span><b>${result.noCount}</b></div>
+            <div class="${result.deal ? 'successBox' : 'dangerBox'}">${result.deal ? 'На текущий момент сделка проходит.' : 'На текущий момент сделка не проходит.'}</div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:18px;">
+          <h2>Участники</h2>
+          ${responses.length ? `
+            <table class="table">
+              <thead><tr><th>Имя</th><th>Роль</th><th>Статус</th><th>Ответ</th></tr></thead>
+              <tbody>
+                ${responses.map(r => `
+                  <tr>
+                    <td>${escapeHtml(r.nickname)}</td>
+                    <td>${r.role}</td>
+                    <td>${r.done ? 'готово' : 'в процессе'}</td>
+                    <td>${r.role === 1 ? (r.offer ?? '—') : (r.accept === null ? '—' : (r.accept ? 'принять' : 'отклонить'))}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : '<p class="muted">Пока никто не зашел.</p>'}
+        </div>
+      `;
+    }
+
+    function bindHostScreen(sessionCode, hostCode) {
+      q('#refreshHostBtn').onclick = () => render();
+      q('#openJoinBtn').onclick = async () => { await updateSession(sessionCode, { phase: 'join' }); render(); };
+      q('#closeJoinBtn').onclick = async () => { await updateSession(sessionCode, { phase: 'closed' }); render(); };
+      q('#finalizeBtn').onclick = async () => { await updateSession(sessionCode, { phase: 'result' }); go({ screen: 'result', session: sessionCode }); };
+      setTimeout(() => {
+        const route = parseRoute();
+        if (route.screen === 'host' && route.session === sessionCode && route.host === hostCode) render();
+      }, 4000);
+    }
+
+    async function renderResultScreen(sessionCode) {
+      const session = await loadSession(sessionCode);
+      if (!session) return `<div class="page"><div class="card"><h1>Сессия не найдена</h1></div></div>`;
+      const responses = await loadResponses(sessionCode);
+      const result = computeResult(session, responses);
+      return `
+        <div class="page">
+          <div class="card center">
+            <h1>Итог игры</h1>
+            ${session.phase !== 'result' ? `<div class="infoBox">Преподаватель еще не завершил раунд. Данные ниже могут меняться.</div>` : ''}
+            <div class="stat"><span>Среднее предложение</span><b>${result.avgOffer.toFixed(2)}</b></div>
+            <div class="stat"><span>Медиана предложения</span><b>${result.medOffer.toFixed(2)}</b></div>
+            <div class="stat"><span>Приняли</span><b>${result.yesCount}</b></div>
+            <div class="stat"><span>Отклонили</span><b>${result.noCount}</b></div>
+            <div class="stat"><span>Доля принятия</span><b>${(result.acceptanceRate * 100).toFixed(1)}%</b></div>
+            <div class="${result.deal ? 'successBox' : 'dangerBox'} big">${result.deal ? 'Сделка состоялась' : 'Сделка не состоялась'}</div>
+            <div class="nav" style="justify-content:center;">
+              <button id="refreshResultBtn" class="secondary">Обновить</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function bindResultScreen(sessionCode) {
+      if (q('#refreshResultBtn')) q('#refreshResultBtn').onclick = () => render();
+      setTimeout(() => {
+        const route = parseRoute();
+        if (route.screen === 'result' && route.session === sessionCode) render();
+      }, 4000);
+    }
+
+    window.addEventListener('popstate', render);
+    render();
   </script>
 </body>
 </html>
