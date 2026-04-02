@@ -17,19 +17,18 @@
     .tiny { color: #5f6f8c; font-size: 12px; }
     .row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); align-items: end; }
     label { display: block; font-weight: 700; margin-bottom: 6px; font-size: 14px; }
-    input, button, select { width: 100%; border-radius: 14px; border: 1px solid #cfd9ea; padding: 12px 14px; font-size: 15px; }
-    input:focus, select:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,0.12); }
+    input, button { width: 100%; border-radius: 14px; border: 1px solid #cfd9ea; padding: 12px 14px; font-size: 15px; }
+    input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,0.12); }
     button { border: none; cursor: pointer; background: #2563eb; color: white; font-weight: 800; }
     button.secondary { background: #e7eefb; color: #172033; }
     button.green { background: #059669; }
     button.red { background: #dc2626; }
     .pill { display: inline-block; padding: 7px 12px; border-radius: 999px; background: #edf4ff; color: #21417d; font-weight: 800; margin-right: 8px; margin-bottom: 8px; font-size: 13px; }
     .stat { display: flex; justify-content: space-between; gap: 14px; border: 1px solid #dde6f6; background: #fbfdff; border-radius: 16px; padding: 14px 16px; margin-bottom: 10px; }
-    .successBox, .dangerBox, .infoBox, .warnBox { border-radius: 18px; padding: 16px 18px; margin-top: 12px; font-weight: 700; }
+    .successBox, .dangerBox, .infoBox { border-radius: 18px; padding: 16px 18px; margin-top: 12px; font-weight: 700; }
     .successBox { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
     .dangerBox { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
     .infoBox { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
-    .warnBox { background: #fff7ed; border: 1px solid #fdba74; color: #9a3412; }
     .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #0f172a; color: #dbeafe; border-radius: 14px; padding: 10px 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
     .choice { border: 1px solid #dde6f6; background: #fbfdff; border-radius: 18px; padding: 16px; }
     .nav { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
@@ -50,9 +49,7 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6bXFtdGF1d3Nqa2xsZ2hwb3N1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxMzEwMTgsImV4cCI6MjA5MDcwNzAxOH0.qnuIM8MEiGjsaFYDEySZgDHsVrruFt2M9NM3iKnocLo';
     const SESSION_STORAGE_KEY = 'ultimatum-gh-pages-player';
     const DRAFT_STORAGE_KEY = 'ultimatum-gh-pages-draft';
-    const DEFAULT_TOTAL_MONEY = 20;
-    const ODD_ACCEPT_THRESHOLD = 10;
-    const ODD_DEFAULT_OFFER = 10;
+    const TOTAL_MONEY = 20;
 
     function q(sel) { return document.querySelector(sel); }
     function randomCode(len = 6) { return Math.random().toString(36).slice(2, 2 + len).toUpperCase(); }
@@ -130,7 +127,7 @@
     async function createSession() {
       const session_code = randomCode(6);
       const host_code = randomCode(10);
-      const body = [{ session_code, host_code, total_money: DEFAULT_TOTAL_MONEY, phase: 'join' }];
+      const body = [{ session_code, host_code, total_money: TOTAL_MONEY, phase: 'lobby' }];
       const res = await api('game_sessions', { method: 'POST', body: JSON.stringify(body) });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -189,91 +186,107 @@
       for (let i = 0; i < pairCount; i++) {
         pairs.push({ proposer: role1[i], responder: role2[i], type: 'normal' });
       }
-      if (role1.length > role2.length) {
-        for (let i = pairCount; i < role1.length; i++) {
-          pairs.push({ proposer: role1[i], responder: null, type: 'odd_proposer' });
-        }
-      }
-      if (role2.length > role1.length) {
-        for (let i = pairCount; i < role2.length; i++) {
-          pairs.push({ proposer: null, responder: role2[i], type: 'odd_responder' });
-        }
-      }
       return pairs;
     }
 
     function pairForParticipant(responses, participantCode) {
-      const pairs = buildPairs(responses);
-      return pairs.find(p => (p.proposer && p.proposer.participant_code === participantCode) || (p.responder && p.responder.participant_code === participantCode)) || null;
+      const result = computeResult({ total_money: TOTAL_MONEY, phase: 'vote' }, responses);
+      return result.pairs.find(p => (p.proposer && p.proposer.participant_code === participantCode) || (p.responder && p.responder.participant_code === participantCode)) || null;
     }
 
     function computeResult(session, responses) {
-      const pairs = buildPairs(responses);
+      const role1 = responses.filter(x => x.role === 1).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const role2 = responses.filter(x => x.role === 2).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const pairCount = Math.min(role1.length, role2.length);
+      const pairs = [];
+      const offerValues = [];
       let acceptedDeals = 0;
       let rejectedDeals = 0;
       let pendingDeals = 0;
-      let oddAutoAccepted = 0;
-      let oddAutoOffered = 0;
+      let autoOddProposerCount = 0;
+      let autoOddResponderCount = 0;
 
-      const offerValues = [];
+      for (let i = 0; i < pairCount; i++) {
+        const proposer = role1[i];
+        const responder = role2[i];
+        const offer = Number.isFinite(proposer?.offer) ? proposer.offer : null;
+        if (offer !== null) offerValues.push(offer);
+        let decision = 'pending';
+        if (offer === null || responder?.accept === null || responder?.accept === undefined) {
+          pendingDeals += 1;
+        } else if (responder.accept === true) {
+          decision = 'accepted';
+          acceptedDeals += 1;
+        } else {
+          decision = 'rejected';
+          rejectedDeals += 1;
+        }
+        pairs.push({ proposer, responder, type: 'normal', offer, decision });
+      }
 
-      for (const pair of pairs) {
-        if (pair.type === 'normal') {
-          const offer = pair.proposer && Number.isFinite(pair.proposer.offer) ? pair.proposer.offer : null;
+      if (role1.length > role2.length) {
+        for (let i = pairCount; i < role1.length; i++) {
+          const proposer = role1[i];
+          const offer = Number.isFinite(proposer?.offer) ? proposer.offer : null;
           if (offer !== null) offerValues.push(offer);
-          if (offer === null || pair.responder?.accept === null || pair.responder?.accept === undefined) {
-            pendingDeals += 1;
-          } else if (pair.responder.accept === true) {
-            acceptedDeals += 1;
-          } else {
-            rejectedDeals += 1;
-          }
-        } else if (pair.type === 'odd_proposer') {
-          const offer = pair.proposer && Number.isFinite(pair.proposer.offer) ? pair.proposer.offer : null;
-          if (offer !== null) offerValues.push(offer);
+          let decision = 'pending';
           if (offer === null) {
             pendingDeals += 1;
-          } else if (offer > ODD_ACCEPT_THRESHOLD) {
+          } else if (offer > 10) {
+            decision = 'accepted';
             acceptedDeals += 1;
-            oddAutoAccepted += 1;
+            autoOddProposerCount += 1;
           } else {
+            decision = 'rejected';
             rejectedDeals += 1;
-            oddAutoAccepted += 1;
+            autoOddProposerCount += 1;
           }
-        } else if (pair.type === 'odd_responder') {
-          offerValues.push(ODD_DEFAULT_OFFER);
-          oddAutoOffered += 1;
-          if (pair.responder?.accept === null || pair.responder?.accept === undefined) {
-            pendingDeals += 1;
-          } else if (pair.responder.accept === true) {
-            acceptedDeals += 1;
-          } else {
-            rejectedDeals += 1;
-          }
+          pairs.push({ proposer, responder: null, type: 'odd_proposer', offer, decision });
         }
       }
 
-      const completedDeals = acceptedDeals + rejectedDeals;
+      if (role2.length > role1.length) {
+        for (let i = pairCount; i < role2.length; i++) {
+          const responder = role2[i];
+          const offer = 10;
+          offerValues.push(offer);
+          let decision = 'pending';
+          if (responder?.accept === null || responder?.accept === undefined) {
+            pendingDeals += 1;
+          } else if (responder.accept === true) {
+            decision = 'accepted';
+            acceptedDeals += 1;
+            autoOddResponderCount += 1;
+          } else {
+            decision = 'rejected';
+            rejectedDeals += 1;
+            autoOddResponderCount += 1;
+          }
+          pairs.push({ proposer: null, responder, type: 'odd_responder', offer, decision });
+        }
+      }
+
       return {
         pairs,
         avgOffer: average(offerValues),
         acceptedDeals,
         rejectedDeals,
         pendingDeals,
-        completedDeals,
-        oddAutoAccepted,
-        oddAutoOffered,
         totalParticipants: responses.length,
-        role1Count: responses.filter(x => x.role === 1).length,
-        role2Count: responses.filter(x => x.role === 2).length,
+        role1Count: role1.length,
+        role2Count: role2.length,
         offerDoneCount: responses.filter(x => x.role === 1 && x.done).length,
         acceptDoneCount: responses.filter(x => x.role === 2 && x.done).length,
-        totalMoney: session.total_money
+        leftovers: Math.abs(role1.length - role2.length),
+        autoOddProposerCount,
+        autoOddResponderCount,
+        totalMoney: session.total_money,
+        canVote: session.phase === 'vote'
       };
     }
 
     function configHelp() {
-      return `-- SQL: run in Supabase SQL Editor --\n\ncreate table if not exists public.game_sessions (\n  id bigint generated by default as identity primary key,\n  session_code text unique not null,\n  host_code text unique not null,\n  total_money integer not null default 20,\n  phase text not null default 'join',\n  created_at timestamptz not null default now()\n);\n\ncreate table if not exists public.game_responses (\n  id bigint generated by default as identity primary key,\n  session_code text not null references public.game_sessions(session_code) on delete cascade,\n  participant_code text not null,\n  nickname text not null default 'Студент',\n  role integer not null check (role in (1,2)),\n  offer integer,\n  accept boolean,\n  done boolean not null default false,\n  created_at timestamptz not null default now(),\n  unique(session_code, participant_code)\n);\n\nalter table public.game_sessions enable row level security;\nalter table public.game_responses enable row level security;\n\ndrop policy if exists \"public read sessions\" on public.game_sessions;\ncreate policy \"public read sessions\" on public.game_sessions for select using (true);\n\ndrop policy if exists \"public insert sessions\" on public.game_sessions;\ncreate policy \"public insert sessions\" on public.game_sessions for insert with check (true);\n\ndrop policy if exists \"public update sessions\" on public.game_sessions;\ncreate policy \"public update sessions\" on public.game_sessions for update using (true) with check (true);\n\ndrop policy if exists \"public read responses\" on public.game_responses;\ncreate policy \"public read responses\" on public.game_responses for select using (true);\n\ndrop policy if exists \"public insert responses\" on public.game_responses;\ncreate policy \"public insert responses\" on public.game_responses for insert with check (true);\n\ndrop policy if exists \"public update responses\" on public.game_responses;\ncreate policy \"public update responses\" on public.game_responses for update using (true) with check (true);\n\n-- end SQL --`;
+      return `-- SQL: run in Supabase SQL Editor --\n\ncreate table if not exists public.game_sessions (\n  id bigint generated by default as identity primary key,\n  session_code text unique not null,\n  host_code text unique not null,\n  total_money integer not null default 20,\n  phase text not null default 'lobby',\n  created_at timestamptz not null default now()\n);\n\ncreate table if not exists public.game_responses (\n  id bigint generated by default as identity primary key,\n  session_code text not null references public.game_sessions(session_code) on delete cascade,\n  participant_code text not null,\n  nickname text not null default 'Студент',\n  role integer not null check (role in (1,2)),\n  offer integer,\n  accept boolean,\n  done boolean not null default false,\n  created_at timestamptz not null default now(),\n  unique(session_code, participant_code)\n);\n\nalter table public.game_sessions enable row level security;\nalter table public.game_responses enable row level security;\n\ndrop policy if exists \"public read sessions\" on public.game_sessions;\ncreate policy \"public read sessions\" on public.game_sessions for select using (true);\n\ndrop policy if exists \"public insert sessions\" on public.game_sessions;\ncreate policy \"public insert sessions\" on public.game_sessions for insert with check (true);\n\ndrop policy if exists \"public update sessions\" on public.game_sessions;\ncreate policy \"public update sessions\" on public.game_sessions for update using (true) with check (true);\n\ndrop policy if exists \"public read responses\" on public.game_responses;\ncreate policy \"public read responses\" on public.game_responses for select using (true);\n\ndrop policy if exists \"public insert responses\" on public.game_responses;\ncreate policy \"public insert responses\" on public.game_responses for insert with check (true);\n\ndrop policy if exists \"public update responses\" on public.game_responses;\ncreate policy \"public update responses\" on public.game_responses for update using (true) with check (true);\n\n-- end SQL --`;
     }
 
     async function render() {
@@ -332,12 +345,11 @@
         <div class="grid grid-2">
           <div class="card">
             <h1>Ultimatum Game</h1>
-            <p class="muted">Новая логика: игрок 1 предлагает, игрок 2 либо соглашается, либо нет. Число участников заранее не задается. Сумма по умолчанию — <b>${DEFAULT_TOTAL_MONEY}</b>.</p>
-            <div class="warnBox">Если участников нечетное число, то действует правило автоматического добора: лишний игрок 1 автоматически получает ответ <b>согласен</b>, если предложил больше <b>${ODD_ACCEPT_THRESHOLD}</b>. Лишнему игроку 2 автоматически подставляется предложение <b>${ODD_DEFAULT_OFFER}</b>.</div>
+            <p class="muted">Сначала все заходят по одной ссылке. Потом преподаватель нажимает <b>«Начать голосование»</b>. После этого игроки 1 делают оффер, а игроки 2 принимают или отклоняют предложение своей пары.</p>
+            <div class="infoBox">Количество игроков заранее задавать не нужно. Сумма всегда <b>${TOTAL_MONEY}</b>. Для стабильности лучше, чтобы число игроков 1 и 2 было примерно одинаковым.</div>
           </div>
           <div class="card center">
             <h2>Новая сессия</h2>
-            <p class="muted">Просто создайте сессию. Количество игроков вводить не нужно.</p>
             <div class="nav" style="justify-content:center;"><button id="createSessionBtn">Создать новую сессию</button></div>
           </div>
         </div>
@@ -364,7 +376,7 @@
           <div class="card center">
             <h1>Вход в игру</h1>
             <p class="muted">Сессия: <b>${escapeHtml(sessionCode)}</b></p>
-            <p class="muted">Вы получите случайную роль: <b>игрок 1</b> или <b>игрок 2</b>.</p>
+            <p class="muted">Сейчас идет сбор участников. После команды преподавателя начнется голосование.</p>
             <div class="row" style="text-align:left; margin-top:16px;">
               <div>
                 <label>Ваше имя или номер</label>
@@ -406,19 +418,20 @@
       let content = '';
       if (participant.done) {
         if (pair?.type === 'odd_proposer') {
-          const offer = Number.isFinite(participant.offer) ? participant.offer : null;
-          const accepted = offer !== null && offer > ODD_ACCEPT_THRESHOLD;
-          content = `<div class="successBox">Ваш ответ сохранен.</div><div class="infoBox">У вас не оказалось пары. По правилу нечетного числа участников ваше предложение автоматически ${accepted ? 'принято' : 'отклонено'}.</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>`;
+          const autoAccepted = Number.isFinite(pair.offer) && pair.offer > 10;
+          content = `<div class="successBox">Ваш ответ сохранен.</div><div class="infoBox">У вас нет пары. По автоматическому правилу ваше предложение ${autoAccepted ? 'принято' : 'отклонено'} ${Number.isFinite(pair.offer) ? `(потому что ${pair.offer} ${autoAccepted ? '>' : '<='} 10)` : ''}.</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button><a href="?screen=result&session=${encodeURIComponent(sessionCode)}"><button class="secondary">Страница результата</button></a></div>`;
         } else if (pair?.type === 'odd_responder') {
-          content = `<div class="successBox">Ваш ответ сохранен.</div><div class="infoBox">У вас не оказалось пары. По правилу нечетного числа участников вам автоматически подставили предложение <b>${ODD_DEFAULT_OFFER}</b>.</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>`;
+          content = `<div class="successBox">Ваш ответ сохранен.</div><div class="infoBox">У вас нет пары. Вам автоматически было предложено <b>10</b> из <b>${session.total_money}</b>.</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button><a href="?screen=result&session=${encodeURIComponent(sessionCode)}"><button class="secondary">Страница результата</button></a></div>`;
         } else {
           content = `<div class="successBox">Ваш ответ сохранен.</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button><a href="?screen=result&session=${encodeURIComponent(sessionCode)}"><button class="secondary">Страница результата</button></a></div>`;
         }
+      } else if (session.phase === 'lobby' {
+        content = `<div class="infoBox">Сбор участников еще идет. Дождитесь, пока преподаватель нажмет <b>«Начать голосование»</b>.</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>`;
       } else if (participant.role === 1) {
         content = `
           <div class="choice">
             <h3>Сделайте предложение</h3>
-            <p class="muted">Сколько из <b>${session.total_money}</b> вы готовы отдать игроку 2?</p>
+            <p class="muted">Вы — игрок 1. Сколько из <b>${session.total_money}</b> вы готовы отдать игроку 2?</p>
             <label>Сумма для игрока 2</label>
             <input id="offerInput" type="number" min="0" max="${session.total_money}" value="${currentOfferValue}" />
             <p class="tiny" id="keepHint">Себе останется: <b>${keep}</b></p>
@@ -427,24 +440,24 @@
         `;
       } else {
         if (!pair) {
-          content = `<div class="infoBox">Пока пара еще не сформировалась. Подождите немного и нажмите «Обновить».</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>`;
-        } else if (pair.type === 'odd_responder') {
-          content = `
-            <div class="choice">
-              <h3>Примите решение</h3>
-              <p>У вас не оказалось пары. По правилу нечетного числа участников вам автоматически подставляется предложение: <b>${ODD_DEFAULT_OFFER}</b> из <b>${session.total_money}</b>.</p>
-              <p class="muted">Вы согласны принять такое предложение?</p>
-              <div class="row">
-                <div><button id="acceptBtn" class="green">Принять</button></div>
-                <div><button id="rejectBtn" class="red">Отклонить</button></div>
-                <div><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>
-              </div>
-            </div>
-          `;
+          content = `<div class="infoBox">Пара для вас пока не сформировалась. Нажмите «Обновить» чуть позже.</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>`;
         } else {
-          const proposerOffer = Number.isFinite(pair.proposer?.offer) ? pair.proposer.offer : null;
-          if (proposerOffer === null) {
-            content = `<div class="infoBox">Ваш игрок 1 еще не сделал предложение. Подождите немного и нажмите «Обновить».</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>`;
+          const proposerOffer = Number.isFinite(pair.offer) ? pair.offer : null;
+          if (pair.type === 'odd_responder') {
+            content = `
+              <div class="choice">
+                <h3>Примите решение</h3>
+                <p>У вас нет пары, поэтому автоматически подставлено предложение: <b>10</b> из <b>${session.total_money}</b>.</p>
+                <p class="muted">Вы согласны принять это предложение?</p>
+                <div class="row">
+                  <div><button id="acceptBtn" class="green">Принять</button></div>
+                  <div><button id="rejectBtn" class="red">Отклонить</button></div>
+                  <div><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>
+                </div>
+              </div>
+            `;
+          } else if (proposerOffer === null) {
+            content = `<div class="infoBox">Ваш игрок 1 еще не сделал предложение. Нажмите «Обновить» чуть позже.</div><div class="nav"><button id="refreshPlayerBtn" class="secondary">Обновить</button></div>`;
           } else {
             content = `
               <div class="choice">
@@ -468,6 +481,7 @@
             <div class="pill">${escapeHtml(participant.nickname)}</div>
             <h1>Ваша роль: игрок ${participant.role}</h1>
             <p class="muted">Общая сумма: <b>${session.total_money}</b></p>
+            <p class="tiny">Статус сессии: <b>${escapeHtml(session.phase)}</b></p>
             ${content}
           </div>
         </div>
@@ -478,25 +492,21 @@
       const participantCode = getSavedPlayer(sessionCode);
       if (!participantCode) return;
 
-      if (q('#refreshPlayerBtn')) {
-        q('#refreshPlayerBtn').onclick = () => render();
-      }
+      if (q('#refreshPlayerBtn')) q('#refreshPlayerBtn').onclick = () => render();
 
       const offerInput = q('#offerInput');
       if (offerInput && q('#keepHint')) {
         offerInput.oninput = () => {
-          const sessionTotal = Number(offerInput.max || DEFAULT_TOTAL_MONEY);
           const raw = offerInput.value;
           saveDraft(sessionCode, raw);
-          const value = raw === '' ? '' : Math.max(0, Math.min(sessionTotal, Number(raw) || 0));
-          q('#keepHint').innerHTML = `Себе останется: <b>${value === '' ? '—' : sessionTotal - value}</b>`;
+          const value = raw === '' ? '' : Math.max(0, Math.min(TOTAL_MONEY, Number(raw) || 0));
+          q('#keepHint').innerHTML = `Себе останется: <b>${value === '' ? '—' : TOTAL_MONEY - value}</b>`;
         };
       }
       if (q('#submitOfferBtn')) {
         q('#submitOfferBtn').onclick = async () => {
-          const session = await loadSession(sessionCode);
           const raw = q('#offerInput').value;
-          const value = raw === '' ? NaN : Math.max(0, Math.min(session.total_money, Number(raw)));
+          const value = raw === '' ? NaN : Math.max(0, Math.min(TOTAL_MONEY, Number(raw)));
           if (!Number.isFinite(value)) return;
           q('#submitOfferBtn').disabled = true;
           await updateParticipant(sessionCode, participantCode, { offer: value, done: true });
@@ -543,10 +553,11 @@
             <div class="stat"><span>Сумма в игре</span><b>${session.total_money}</b></div>
             <div class="nav">
               <button id="refreshHostBtn" class="secondary">Обновить</button>
-              <button id="finalizeBtn">Подвести итог</button>
+              <button id="startVotingBtn" class="green">Начать голосование</button>
+              <button id="finalizeBtn">Показать результаты</button>
               <button id="closeBtn" class="secondary">Закрыть вход</button>
             </div>
-            <div class="warnBox">Пары формируются автоматически по порядку входа внутри ролей. Если один игрок остается без пары, применяется правило нечетного числа участников.</div>
+            <div class="infoBox">Сценарий: сначала все заходят по join-ссылке. Потом нажимаете <b>«Начать голосование»</b>. После этого участники играют. Когда закончили, нажимаете <b>«Показать результаты»</b>.</div>
             <p class="tiny">Join</p>
             <div class="code">${escapeHtml(joinUrl)}</div>
             <p class="tiny" style="margin-top:10px;">Result</p>
@@ -565,44 +576,32 @@
             <div class="stat"><span>Принято сделок</span><b>${result.acceptedDeals}</b></div>
             <div class="stat"><span>Отклонено сделок</span><b>${result.rejectedDeals}</b></div>
             <div class="stat"><span>Ожидают решения</span><b>${result.pendingDeals}</b></div>
+            <div class="stat"><span>Без пары</span><b>${result.leftovers}</b></div>
           </div>
         </div>
         <div class="card" style="margin-top:18px;">
           <h2>Пары</h2>
           ${result.pairs.length ? `
             <table class="table">
-              <thead><tr><th>Игрок 1</th><th>Оффер</th><th>Игрок 2</th><th>Решение</th><th>Тип</th></tr></thead>
+              <thead><tr><th>Игрок 1</th><th>Оффер</th><th>Игрок 2</th><th>Решение</th></tr></thead>
               <tbody>
                 ${result.pairs.map(pair => {
                   const proposerName = pair.proposer ? escapeHtml(pair.proposer.nickname) : '—';
                   const responderName = pair.responder ? escapeHtml(pair.responder.nickname) : '—';
-                  const offer = pair.type === 'odd_responder' ? ODD_DEFAULT_OFFER : (Number.isFinite(pair.proposer?.offer) ? pair.proposer.offer : '—');
-                  let decision = '—';
-                  let type = 'обычная';
-                  if (pair.type === 'normal') {
-                    decision = pair.responder?.accept === true ? 'принял' : pair.responder?.accept === false ? 'отклонил' : 'ждет';
-                  } else if (pair.type === 'odd_proposer') {
-                    type = 'лишний игрок 1';
-                    if (Number.isFinite(pair.proposer?.offer)) {
-                      decision = pair.proposer.offer > ODD_ACCEPT_THRESHOLD ? `автопринятие (> ${ODD_ACCEPT_THRESHOLD})` : `автоотклонение (<= ${ODD_ACCEPT_THRESHOLD})`;
-                    } else {
-                      decision = 'ждет оффер';
-                    }
-                  } else {
-                    type = 'лишний игрок 2';
-                    decision = pair.responder?.accept === true ? 'принял' : pair.responder?.accept === false ? 'отклонил' : 'ждет';
-                  }
-                  return `<tr><td>${proposerName}</td><td>${offer}</td><td>${responderName}</td><td>${decision}</td><td>${type}</td></tr>`;
+                  const offer = Number.isFinite(pair.proposer?.offer) ? pair.proposer.offer : '—';
+                  const decision = pair.responder?.accept === true ? 'принял' : pair.responder?.accept === false ? 'отклонил' : 'ждет';
+                  return `<tr><td>${proposerName}</td><td>${offer}</td><td>${responderName}</td><td>${decision}</td></tr>`;
                 }).join('')}
               </tbody>
             </table>
-          ` : '<p class="muted">Пока никто не зашел.</p>'}
+          ` : '<p class="muted">Пока пары не сформировались.</p>'}
         </div>
       `;
     }
 
     function bindHostScreen(sessionCode, hostCode) {
       q('#refreshHostBtn').onclick = () => render();
+      q('#startVotingBtn').onclick = async () => { await updateSession(sessionCode, { phase: 'vote' }); render(); };
       q('#closeBtn').onclick = async () => { await updateSession(sessionCode, { phase: 'closed' }); render(); };
       q('#finalizeBtn').onclick = async () => { await updateSession(sessionCode, { phase: 'result' }); go({ screen: 'result', session: sessionCode }); };
       setTimeout(() => {
@@ -619,12 +618,11 @@
       return `
         <div class="page">
           <div class="card center">
-            <h1>Итог игры</h1>
+            <h1>Результаты</h1>
             <div class="stat"><span>Среднее предложение</span><b>${result.avgOffer.toFixed(2)}</b></div>
             <div class="stat"><span>Принято сделок</span><b>${result.acceptedDeals}</b></div>
             <div class="stat"><span>Отклонено сделок</span><b>${result.rejectedDeals}</b></div>
-            <div class="stat"><span>Автологика для лишнего игрока 1</span><b>${result.oddAutoAccepted}</b></div>
-            <div class="stat"><span>Автологика для лишнего игрока 2</span><b>${result.oddAutoOffered}</b></div>
+            <div class="stat"><span>Ожидают решения</span><b>${result.pendingDeals}</b></div>
             <div class="${result.acceptedDeals > result.rejectedDeals ? 'successBox' : 'dangerBox'} big">${result.acceptedDeals > result.rejectedDeals ? 'Сделка состоялась' : 'Сделка не состоялась'}</div>
             <div class="nav" style="justify-content:center;"><button id="refreshResultBtn" class="secondary">Обновить</button></div>
           </div>
